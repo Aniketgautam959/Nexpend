@@ -108,7 +108,7 @@ export default async function HomePage() {
           />
         )}
 
-        <div className='grid grid-cols-1 lg:grid-cols-2 gap-5 items-stretch'>
+        <div className='grid grid-cols-1 lg:grid-cols-2 gap-5 items-start'>
           <AddNewRecord />
           <div className='flex flex-col gap-5 min-w-0'>
             <MonthlyOverview key={records.length} initialData={monthly} />

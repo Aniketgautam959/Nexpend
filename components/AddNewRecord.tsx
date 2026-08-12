@@ -212,7 +212,7 @@ const AddRecord = () => {
   };
 
   return (
-    <section className='panel p-5 sm:p-6 h-full flex flex-col'>
+    <section className='panel p-5 sm:p-6'>
       <h2 className='panel-title mb-1'>Add expense</h2>
       <p className='panel-sub mb-5'>
         Log subscriptions, shopping, bills, and everyday spends
@@ -269,7 +269,7 @@ const AddRecord = () => {
           e.preventDefault();
           clientAction(new FormData(formRef.current!));
         }}
-        className='space-y-4 flex-1 flex flex-col'
+        className='space-y-4'
       >
         <div className='space-y-1.5'>
           <div className='flex items-center justify-between gap-2'>
@@ -417,7 +417,7 @@ const AddRecord = () => {
 
         <button
           type='submit'
-          className='w-full btn-primary py-2.5 mt-auto'
+          className='w-full btn-primary py-2.5'
           disabled={isLoading}
         >
           {isLoading ? 'Saving…' : 'Add expense'}
