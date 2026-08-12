@@ -10,7 +10,7 @@ import {
 } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
-import { ensureDemoUser } from '@/lib/demoAccount';
+import { ensureDemoUser, DEMO_EMAIL, DEMO_PASSWORD } from '@/lib/demoAccount';
 
 export async function registerAction(formData: FormData) {
   const name = String(formData.get('name') || '').trim();
@@ -49,6 +49,13 @@ export async function loginAction(formData: FormData) {
 
   if (!email || !password) {
     return { error: 'Email and password are required' };
+  }
+
+  if (email === DEMO_EMAIL && password === DEMO_PASSWORD) {
+    const user = await ensureDemoUser();
+    const token = await createToken(user.id);
+    await setAuthCookie(token);
+    redirect('/');
   }
 
   const user = await db.user.findUnique({ where: { email } });
