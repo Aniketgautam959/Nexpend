@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import NexpendLogo from '@/components/NexpendLogo';
 
 const Footer = () => {
   return (
@@ -6,15 +7,8 @@ const Footer = () => {
       <div className='max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12'>
         <div className='grid grid-cols-1 md:grid-cols-3 gap-10 mb-10'>
           <div>
-            <div className='inline-flex items-center gap-2.5 mb-4'>
-              <div className='w-8 h-8 rounded-lg bg-accent flex items-center justify-center'>
-                <svg className='w-4 h-4 text-accent-foreground' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2.5'>
-                  <path strokeLinecap='round' strokeLinejoin='round' d='M12 3v18M5 10l7-7 7 7' />
-                </svg>
-              </div>
-              <h2 className='text-lg font-semibold text-zinc-900 dark:text-white'>
-                Nexpend
-              </h2>
+            <div className='mb-4'>
+              <NexpendLogo size='md' />
             </div>
             <p className='text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed max-w-sm'>
               Intelligent financial management powered by AI. Track expenses,

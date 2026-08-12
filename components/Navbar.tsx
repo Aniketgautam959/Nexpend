@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import ThemeToggle from '@/components/ThemeToggle';
+import NexpendLogo from '@/components/NexpendLogo';
 import { useState } from 'react';
 import { logoutAction } from '@/lib/auth-actions';
 
@@ -22,15 +23,8 @@ export default function Navbar({ user }: { user: NavUser }) {
     <nav className='sticky top-0 z-50 border-b border-zinc-200/70 dark:border-zinc-800/70 bg-[var(--background)]/75 backdrop-blur-xl'>
       <div className='max-w-6xl mx-auto px-4 sm:px-6 lg:px-8'>
         <div className='flex items-center justify-between h-14 sm:h-16'>
-          <Link href='/' className='flex items-center gap-2.5' onClick={closeMobileMenu}>
-            <div className='w-8 h-8 rounded-lg bg-zinc-900 dark:bg-white flex items-center justify-center'>
-              <svg className='w-4 h-4 text-white dark:text-zinc-900' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2.5'>
-                <path strokeLinecap='round' strokeLinejoin='round' d='M12 3v18M5 10l7-7 7 7' />
-              </svg>
-            </div>
-            <span className='text-base font-semibold tracking-tight text-zinc-900 dark:text-white'>
-              Nexpend
-            </span>
+          <Link href='/' className='flex items-center' onClick={closeMobileMenu}>
+            <NexpendLogo size='md' />
           </Link>
 
           <div className='hidden md:flex items-center gap-7'>

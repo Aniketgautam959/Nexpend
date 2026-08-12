@@ -43,7 +43,7 @@ const NexpendLogo: React.FC<NexpendLogoProps> = ({
 
       {showText && (
         <span
-          className={`${textSizeClasses[size]} font-semibold tracking-tight text-zinc-900 dark:text-white`}
+          className={`${textSizeClasses[size]} font-semibold tracking-tight text-accent`}
         >
           Nexpend
         </span>
