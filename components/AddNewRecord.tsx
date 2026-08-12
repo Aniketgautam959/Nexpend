@@ -235,7 +235,7 @@ const AddRecord = () => {
               {isDragging ? 'Drop screenshot here' : 'Scan payment screenshot'}
             </p>
             <p className='text-xs text-zinc-500 dark:text-zinc-400 mt-0.5'>
-              Drag & drop or upload a UPI / Paytm / GPay receipt to auto-fill
+              Drag & drop a success receipt — failed UPI payments are skipped
             </p>
             {screenshotName && (
               <p className='text-xs text-zinc-500 mt-1 truncate max-w-[240px]'>

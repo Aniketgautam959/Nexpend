@@ -339,9 +339,15 @@ export async function extractExpenseFromScreenshot(
   }
 
   const openai = getOpenAI();
-  const instruction = `Read this payment screenshot. Reply with ONLY JSON:
-{"description":"short text","amount":0,"category":"${VALID_CATEGORIES.join('|')}","merchant":"","paymentMethod":"${VALID_PAYMENT_METHODS.join('|')}|","date":"YYYY-MM-DD","note":""}
-Use null/"" when unclear. No markdown.`;
+  const instruction = `Read this payment / UPI / Paytm / GPay / bank screenshot. Reply with ONLY JSON (no markdown).
+
+IMPORTANT — failed payments:
+If the screen shows a FAILED / unsuccessful payment (e.g. "Your money has not been debited", "payment failed", "transaction failed", "exceeded bank limit", "Retry", red error box, declined), do NOT treat it as an expense.
+Return: {"status":"failed","reason":"short reason from the screen"}
+
+Only if the payment clearly SUCCEEDED (paid, success, sent, debit confirmed), return:
+{"status":"success","description":"short text","amount":0,"category":"${VALID_CATEGORIES.join('|')}","merchant":"","paymentMethod":"${VALID_PAYMENT_METHODS.join('|')}|","date":"YYYY-MM-DD","note":""}
+Use null/"" when unclear.`;
 
   // Fast paid-lite first, then small free VL fallbacks (skip slow free router)
   const visionModels = [
@@ -374,7 +380,7 @@ Use null/"" when unclear. No markdown.`;
           },
         ],
         temperature: 0,
-        max_tokens: 180,
+        max_tokens: 220,
         // OpenRouter: pick the quickest provider when available
         // @ts-expect-error OpenRouter-specific routing hint
         provider: { sort: 'latency' },
@@ -398,6 +404,28 @@ Use null/"" when unclear. No markdown.`;
   }
 
   const parsed = parseJsonObject(response);
+
+  const status =
+    typeof parsed.status === 'string' ? parsed.status.toLowerCase().trim() : '';
+  const reason =
+    typeof parsed.reason === 'string' ? parsed.reason.trim() : '';
+
+  const looksFailed =
+    status === 'failed' ||
+    status === 'failure' ||
+    status === 'unsuccessful' ||
+    /not been debited|payment failed|transaction failed|exceeded.*limit|declined|unsuccessful/i.test(
+      `${status} ${reason} ${typeof parsed.note === 'string' ? parsed.note : ''} ${typeof parsed.description === 'string' ? parsed.description : ''}`
+    );
+
+  if (looksFailed) {
+    throw new Error(
+      reason
+        ? `Failed payment — ${reason}. Not adding as an expense.`
+        : 'This looks like a failed payment (money was not debited). Not adding as an expense.'
+    );
+  }
+
   const amountRaw = parsed.amount;
   const amount =
     typeof amountRaw === 'number'

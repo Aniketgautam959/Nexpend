@@ -38,6 +38,9 @@ export async function extractExpenseFromScreenshot(
         error: 'AI rate limit hit. Wait a minute and try again.',
       };
     }
+    if (/failed payment|not been debited|not adding as an expense/i.test(message)) {
+      return { error: message };
+    }
 
     return {
       error: 'Could not read this screenshot. Try a clearer payment screen.',
