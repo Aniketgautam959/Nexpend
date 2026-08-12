@@ -41,6 +41,13 @@ export async function extractExpenseFromScreenshot(
     if (/failed payment|not been debited|not adding as an expense/i.test(message)) {
       return { error: message };
     }
+    if (
+      /not a payment|invoice screenshot|could not find a payment amount/i.test(
+        message
+      )
+    ) {
+      return { error: message };
+    }
 
     return {
       error: 'Could not read this screenshot. Try a clearer payment screen.',

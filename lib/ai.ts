@@ -339,15 +339,22 @@ export async function extractExpenseFromScreenshot(
   }
 
   const openai = getOpenAI();
-  const instruction = `Read this payment / UPI / Paytm / GPay / bank screenshot. Reply with ONLY JSON (no markdown).
+  const instruction = `You are reading an image for an expense tracker. Reply with ONLY JSON (no markdown).
 
-IMPORTANT — failed payments:
-If the screen shows a FAILED / unsuccessful payment (e.g. "Your money has not been debited", "payment failed", "transaction failed", "exceeded bank limit", "Retry", red error box, declined), do NOT treat it as an expense.
-Return: {"status":"failed","reason":"short reason from the screen"}
+First decide what the image is:
 
-Only if the payment clearly SUCCEEDED (paid, success, sent, debit confirmed), return:
-{"status":"success","description":"short text","amount":0,"category":"${VALID_CATEGORIES.join('|')}","merchant":"","paymentMethod":"${VALID_PAYMENT_METHODS.join('|')}|","date":"YYYY-MM-DD","note":""}
-Use null/"" when unclear.`;
+1) NOT a payment / invoice / bill / UPI / Paytm / GPay / PhonePe / bank transfer / receipt screen
+   (selfie, meme, random photo, chat, wallpaper, food photo without a bill, etc.)
+   → Return: {"status":"invalid","reason":"Not a payment or invoice screenshot"}
+   Do NOT invent amounts, merchants, or expense details.
+
+2) FAILED / unsuccessful payment
+   ("Your money has not been debited", payment failed, exceeded bank limit, declined, Retry)
+   → Return: {"status":"failed","reason":"short reason from the screen"}
+
+3) SUCCESSFUL payment OR clear invoice / bill / receipt with a real amount paid
+   → Return: {"status":"success","description":"short text","amount":123.45,"category":"${VALID_CATEGORIES.join('|')}","merchant":"","paymentMethod":"${VALID_PAYMENT_METHODS.join('|')}|","date":"YYYY-MM-DD","note":""}
+   amount must be a real number from the image. Use null only if amount is genuinely unreadable — never invent a default like 200.`;
 
   // Fast paid-lite first, then small free VL fallbacks (skip slow free router)
   const visionModels = [
@@ -410,6 +417,19 @@ Use null/"" when unclear.`;
   const reason =
     typeof parsed.reason === 'string' ? parsed.reason.trim() : '';
 
+  if (
+    status === 'invalid' ||
+    status === 'rejected' ||
+    status === 'unknown' ||
+    status === 'not_payment' ||
+    status === 'irrelevant'
+  ) {
+    throw new Error(
+      reason ||
+        'This is not a payment or invoice screenshot. Upload a UPI / Paytm / GPay / bill receipt.'
+    );
+  }
+
   const looksFailed =
     status === 'failed' ||
     status === 'failure' ||
@@ -426,6 +446,13 @@ Use null/"" when unclear.`;
     );
   }
 
+  // Older models may omit status — still reject empty/invented junk
+  if (status && status !== 'success' && status !== 'ok' && status !== 'paid') {
+    throw new Error(
+      'This is not a payment or invoice screenshot. Upload a UPI / Paytm / GPay / bill receipt.'
+    );
+  }
+
   const amountRaw = parsed.amount;
   const amount =
     typeof amountRaw === 'number'
@@ -433,6 +460,25 @@ Use null/"" when unclear.`;
       : typeof amountRaw === 'string'
         ? parseFloat(amountRaw.replace(/[^\d.]/g, ''))
         : null;
+
+  const description =
+    typeof parsed.description === 'string' ? parsed.description.trim() : '';
+
+  // No real payment data → don't fill the form with defaults
+  if (
+    (amount === null || Number.isNaN(amount) || amount <= 0) &&
+    !description
+  ) {
+    throw new Error(
+      'This is not a payment or invoice screenshot. Upload a UPI / Paytm / GPay / bill receipt.'
+    );
+  }
+
+  if (amount === null || Number.isNaN(amount) || amount <= 0) {
+    throw new Error(
+      'Could not find a payment amount in this image. Use a clearer payment or invoice screenshot.'
+    );
+  }
 
   const category =
     typeof parsed.category === 'string' &&
@@ -449,11 +495,8 @@ Use null/"" when unclear.`;
       : '';
 
   return {
-    description:
-      typeof parsed.description === 'string' && parsed.description.trim()
-        ? parsed.description.trim()
-        : 'Payment',
-    amount: amount !== null && !Number.isNaN(amount) ? amount : null,
+    description: description || 'Payment',
+    amount,
     category,
     merchant: typeof parsed.merchant === 'string' ? parsed.merchant.trim() : '',
     paymentMethod,
