@@ -226,7 +226,7 @@ const BarChart = ({ records }: { records: Record[] }) => {
   };
 
   return (
-    <div className='relative w-full h-64 sm:h-72 md:h-80'>
+    <div className='relative w-full h-72 sm:h-80 md:h-96'>
       <Bar data={data} options={options} />
     </div>
   );

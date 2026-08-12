@@ -13,7 +13,7 @@ const RecordChart = ({ records }: { records: Record[] }) => {
 
   if (!records || records.length === 0) {
     return (
-      <section className='panel p-5 sm:p-6 min-h-[240px] flex flex-col flex-1'>
+      <section className='panel p-5 sm:p-6 w-full'>
         {header}
         <div className='flex-1 flex flex-col items-center justify-center text-center py-8 px-4 rounded-2xl border border-dashed border-zinc-300 dark:border-zinc-700 bg-zinc-50/50 dark:bg-black/20'>
           <div className='h-12 w-12 rounded-2xl bg-accent/15 text-accent flex items-center justify-center mb-4'>
@@ -38,7 +38,7 @@ const RecordChart = ({ records }: { records: Record[] }) => {
   }
 
   return (
-    <section className='panel p-5 sm:p-6 flex-1 w-full'>
+    <section className='panel p-5 sm:p-6 w-full'>
       {header}
       <div className='overflow-x-auto -mx-1 px-1'>
         <BarChart
