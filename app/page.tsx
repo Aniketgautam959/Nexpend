@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { Suspense } from 'react';
 import AddNewRecord from '@/components/AddNewRecord';
 import AIInsights from '@/components/AIInsights';
 import BudgetStrip from '@/components/BudgetStrip';
@@ -7,10 +8,7 @@ import ExpenseStats from '@/components/ExpenseStats';
 import Guest from '@/components/Guest';
 import MonthlyOverview from '@/components/MonthlyOverview';
 import RecordChart from '@/components/RecordChart';
-import getUserRecord from '@/app/actions/getUserRecord';
-import getRecord from '@/app/actions/getRecord';
-import getBestWorstExpense from '@/app/actions/getBestWorstExpense';
-import { getMonthlyOverview } from '@/app/actions/getMonthlyOverview';
+import { getDashboardData } from '@/lib/dashboard';
 import { getCurrentUser } from '@/lib/auth';
 import { formatMoney } from '@/lib/expenseMeta';
 
@@ -24,24 +22,18 @@ export default async function HomePage() {
     redirect('/onboarding');
   }
 
-  const [userRecordResult, recordsResult, rangeResult, monthlyResult] =
-    await Promise.all([
-      getUserRecord(),
-      getRecord(),
-      getBestWorstExpense(),
-      getMonthlyOverview(),
-    ]);
+  const {
+    records,
+    totalSpent,
+    daysWithRecords,
+    bestExpense,
+    worstExpense,
+    monthly,
+  } = await getDashboardData(user.id);
 
-  const totalSpent = userRecordResult.record ?? 0;
-  const entryCount = recordsResult.records?.length ?? 0;
-  const avgDaily =
-    (userRecordResult.daysWithRecords ?? 0) > 0
-      ? totalSpent / (userRecordResult.daysWithRecords as number)
-      : 0;
-  const topSpend = rangeResult.bestExpense;
+  const avgDaily = daysWithRecords > 0 ? totalSpent / daysWithRecords : 0;
   const displayName = user.name || user.email.split('@')[0];
-  const records = recordsResult.records ?? [];
-  const spentThisMonth = monthlyResult.data?.total ?? 0;
+  const spentThisMonth = monthly.total;
   const monthlyIncome = user.monthlyIncome ?? 0;
 
   return (
@@ -91,7 +83,7 @@ export default async function HomePage() {
             <div>
               <span className='text-zinc-500'>High </span>
               <span className='font-semibold text-zinc-900 dark:text-white tabular-nums'>
-                {topSpend !== undefined ? formatMoney(topSpend) : '—'}
+                {bestExpense !== undefined ? formatMoney(bestExpense) : '—'}
               </span>
             </div>
           </div>
@@ -105,18 +97,36 @@ export default async function HomePage() {
           />
         )}
 
-        <div className='grid grid-cols-1 lg:grid-cols-2 gap-6 items-start'>
-          <div className='space-y-6 lg:sticky lg:top-20 lg:self-start'>
+        <div className='grid grid-cols-1 lg:grid-cols-2 gap-5 lg:gap-6 items-start'>
+          <div className='space-y-5 lg:space-y-6'>
             <AddNewRecord />
-            <ExpenseStats />
           </div>
-          <div className='space-y-6'>
-            <MonthlyOverview key={entryCount} />
-            <RecordChart />
+          <div className='space-y-5 lg:space-y-6'>
+            <MonthlyOverview
+              key={records.length}
+              initialData={monthly}
+            />
+            <RecordChart records={records} />
           </div>
         </div>
 
-        <AIInsights />
+        <ExpenseStats
+          totalSpent={totalSpent}
+          daysWithRecords={daysWithRecords}
+          bestExpense={bestExpense}
+          worstExpense={worstExpense}
+        />
+
+        <Suspense
+          fallback={
+            <section className='panel p-5 sm:p-6'>
+              <h2 className='panel-title mb-2'>AI insights</h2>
+              <p className='text-sm text-zinc-500'>Loading insights…</p>
+            </section>
+          }
+        >
+          <AIInsights />
+        </Suspense>
         <ExpenseList records={records} />
       </div>
     </main>

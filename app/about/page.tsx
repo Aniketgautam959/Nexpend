@@ -96,7 +96,7 @@ const AboutPage = () => {
           <div className='grid grid-cols-1 md:grid-cols-2 gap-8 items-start'>
             <div className='space-y-4 text-zinc-500 dark:text-zinc-400 leading-relaxed'>
               <p>
-                Nexpend was founded in 2025 with a vision for truly
+                Nexpend was founded in 2026 with a vision for truly
                 intelligent financial tools — clearer, calmer, and more effective.
               </p>
               <p>
@@ -107,7 +107,7 @@ const AboutPage = () => {
             </div>
 
             <div className='surface-card p-6 shadow-soft dark:shadow-soft-dark space-y-4'>
-              {['Founded in 2025', 'AI-First Approach', 'Global Impact', 'User-Centric Design'].map(
+              {['Founded in 2026', 'AI-First Approach', 'Global Impact', 'User-Centric Design'].map(
                 (item) => (
                   <div key={item} className='flex items-center gap-3'>
                     <div className='w-2 h-2 rounded-full bg-accent' />

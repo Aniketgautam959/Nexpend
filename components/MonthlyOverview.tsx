@@ -11,17 +11,37 @@ import {
   formatMoney,
 } from '@/lib/expenseMeta';
 
-export default function MonthlyOverview() {
-  const now = new Date();
-  const [year, setYear] = useState(now.getFullYear());
-  const [month, setMonth] = useState(now.getMonth());
-  const [data, setData] = useState<MonthlyOverviewData | null>(null);
+export default function MonthlyOverview({
+  initialData,
+}: {
+  initialData?: MonthlyOverviewData | null;
+}) {
+  const [year, setYear] = useState(
+    () => initialData?.year ?? new Date().getFullYear()
+  );
+  const [month, setMonth] = useState(
+    () => initialData?.month ?? new Date().getMonth()
+  );
+  const [data, setData] = useState<MonthlyOverviewData | null>(
+    () => initialData ?? null
+  );
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  const load = (y: number, m: number) => {
+  useEffect(() => {
+    // Use server-provided data for the current month — no extra round trip
+    if (
+      initialData &&
+      year === initialData.year &&
+      month === initialData.month
+    ) {
+      setData(initialData);
+      setError(null);
+      return;
+    }
+
     startTransition(async () => {
-      const result = await getMonthlyOverview(y, m);
+      const result = await getMonthlyOverview(year, month);
       if (result.error) {
         setError(result.error);
         setData(null);
@@ -30,12 +50,7 @@ export default function MonthlyOverview() {
         setData(result.data || null);
       }
     });
-  };
-
-  useEffect(() => {
-    load(year, month);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [year, month]);
+  }, [year, month, initialData]);
 
   const shiftMonth = (delta: number) => {
     const d = new Date(year, month + delta, 1);

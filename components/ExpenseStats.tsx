@@ -1,65 +1,48 @@
-import React from 'react';
-import getUserRecord from '@/app/actions/getUserRecord';
-import getBestWorstExpense from '@/app/actions/getBestWorstExpense';
 import { formatMoney } from '@/lib/expenseMeta';
 
-const ExpenseStats = async () => {
-  try {
-    const [userRecordResult, rangeResult] = await Promise.all([
-      getUserRecord(),
-      getBestWorstExpense(),
-    ]);
+type ExpenseStatsProps = {
+  totalSpent: number;
+  daysWithRecords: number;
+  bestExpense?: number;
+  worstExpense?: number;
+};
 
-    const { record, daysWithRecords, error: userError } = userRecordResult;
-    const { bestExpense, worstExpense, error: rangeError } = rangeResult;
+const ExpenseStats = ({
+  totalSpent,
+  daysWithRecords,
+  bestExpense,
+  worstExpense,
+}: ExpenseStatsProps) => {
+  const validDays = daysWithRecords > 0 ? daysWithRecords : 1;
+  const averageExpense = totalSpent / validDays;
 
-    if (userError) console.error('ExpenseStats - User record error:', userError);
-    if (rangeError) console.error('ExpenseStats - Range error:', rangeError);
-
-    const validRecord = record || 0;
-    const validDays =
-      daysWithRecords && daysWithRecords > 0 ? daysWithRecords : 1;
-    const averageExpense = validRecord / validDays;
-
-    return (
-      <section className='panel p-5 sm:p-6'>
-        <h2 className='panel-title mb-5'>Stats</h2>
-
-        <div className='mb-5'>
-          <p className='text-xs text-zinc-500 mb-1'>Average per day</p>
-          <p className='text-3xl font-semibold tracking-tight text-zinc-900 dark:text-white tabular-nums'>
+  return (
+    <section className='panel p-4 sm:p-5'>
+      <div className='grid grid-cols-3 gap-3 sm:gap-6 divide-x divide-zinc-200 dark:divide-zinc-800'>
+        <div className='min-w-0 pr-0'>
+          <p className='text-xs text-zinc-500 mb-1'>Average / day</p>
+          <p className='text-lg sm:text-xl font-semibold tracking-tight text-zinc-900 dark:text-white tabular-nums truncate'>
             {formatMoney(averageExpense)}
           </p>
-          <p className='text-xs text-zinc-500 mt-1.5'>
-            {validDays} day{validDays === 1 ? '' : 's'} with expenses
+          <p className='text-[11px] text-zinc-500 mt-0.5'>
+            {validDays} day{validDays === 1 ? '' : 's'} logged
           </p>
         </div>
-
-        <div className='grid grid-cols-2 gap-4 pt-4 border-t border-zinc-200 dark:border-zinc-800'>
-          <div>
-            <p className='text-xs text-zinc-500 mb-1'>Highest</p>
-            <p className='text-lg font-semibold tracking-tight text-zinc-900 dark:text-white tabular-nums'>
-              {bestExpense !== undefined ? formatMoney(bestExpense) : '—'}
-            </p>
-          </div>
-          <div>
-            <p className='text-xs text-zinc-500 mb-1'>Lowest</p>
-            <p className='text-lg font-semibold tracking-tight text-zinc-900 dark:text-white tabular-nums'>
-              {worstExpense !== undefined ? formatMoney(worstExpense) : '—'}
-            </p>
-          </div>
+        <div className='min-w-0 pl-3 sm:pl-6'>
+          <p className='text-xs text-zinc-500 mb-1'>Highest</p>
+          <p className='text-lg sm:text-xl font-semibold tracking-tight text-zinc-900 dark:text-white tabular-nums truncate'>
+            {bestExpense !== undefined ? formatMoney(bestExpense) : '—'}
+          </p>
         </div>
-      </section>
-    );
-  } catch (error) {
-    console.error('Error fetching expense statistics:', error);
-    return (
-      <section className='panel p-5 sm:p-6'>
-        <h2 className='panel-title mb-2'>Stats</h2>
-        <p className='text-sm text-zinc-500'>Couldn’t load stats.</p>
-      </section>
-    );
-  }
+        <div className='min-w-0 pl-3 sm:pl-6'>
+          <p className='text-xs text-zinc-500 mb-1'>Lowest</p>
+          <p className='text-lg sm:text-xl font-semibold tracking-tight text-zinc-900 dark:text-white tabular-nums truncate'>
+            {worstExpense !== undefined ? formatMoney(worstExpense) : '—'}
+          </p>
+        </div>
+      </div>
+    </section>
+  );
 };
 
 export default ExpenseStats;

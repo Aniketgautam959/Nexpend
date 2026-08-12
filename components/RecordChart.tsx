@@ -1,9 +1,7 @@
-import getRecord from '@/app/actions/getRecord';
 import BarChart from './BarChart';
+import type { Record } from '@/types/Record';
 
-const RecordChart = async () => {
-  const { records, error } = await getRecord();
-
+const RecordChart = ({ records }: { records: Record[] }) => {
   const header = (
     <div className='flex items-center justify-between gap-3 mb-5'>
       <div>
@@ -12,15 +10,6 @@ const RecordChart = async () => {
       </div>
     </div>
   );
-
-  if (error) {
-    return (
-      <section className='panel p-5 sm:p-6'>
-        {header}
-        <div className='panel-soft p-4 text-sm text-red-500'>{error}</div>
-      </section>
-    );
-  }
 
   if (!records || records.length === 0) {
     return (

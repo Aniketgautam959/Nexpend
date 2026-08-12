@@ -1,12 +1,34 @@
 'use client';
-import { useRef, useState, useTransition } from 'react';
+import { useRef, useState, useTransition, type DragEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import addExpenseRecord from '@/app/actions/addExpenseRecord';
 import { suggestCategory } from '@/app/actions/suggestCategory';
+import { extractExpenseFromScreenshot } from '@/app/actions/extractExpenseFromScreenshot';
 import { EXPENSE_CATEGORIES, PAYMENT_METHODS } from '@/lib/expenseMeta';
+
+async function fileToCompressedDataUrl(file: File): Promise<string> {
+  const bitmap = await createImageBitmap(file);
+  const maxSide = 768;
+  const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+  const width = Math.max(1, Math.round(bitmap.width * scale));
+  const height = Math.max(1, Math.round(bitmap.height * scale));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    throw new Error('Could not process image');
+  }
+  ctx.drawImage(bitmap, 0, 0, width, height);
+  bitmap.close();
+
+  return canvas.toDataURL('image/jpeg', 0.62);
+}
 
 const AddRecord = () => {
   const formRef = useRef<HTMLFormElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [amount, setAmount] = useState(199);
@@ -16,7 +38,14 @@ const AddRecord = () => {
   const [category, setCategory] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('');
   const [description, setDescription] = useState('');
+  const [merchant, setMerchant] = useState('');
+  const [date, setDate] = useState('');
+  const [note, setNote] = useState('');
   const [isCategorizingAI, setIsCategorizingAI] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [screenshotName, setScreenshotName] = useState<string | null>(null);
+  const dragDepthRef = useRef(0);
 
   const clientAction = async (formData: FormData) => {
     setIsLoading(true);
@@ -25,6 +54,10 @@ const AddRecord = () => {
     formData.set('amount', amount.toString());
     formData.set('category', category);
     formData.set('paymentMethod', paymentMethod);
+    formData.set('text', description);
+    formData.set('merchant', merchant);
+    formData.set('date', date);
+    formData.set('note', note);
 
     const { error } = await addExpenseRecord(formData);
 
@@ -42,6 +75,10 @@ const AddRecord = () => {
     setCategory('');
     setPaymentMethod('');
     setDescription('');
+    setMerchant('');
+    setDate('');
+    setNote('');
+    setScreenshotName(null);
     setIsLoading(false);
     startTransition(() => {
       router.refresh();
@@ -78,12 +115,153 @@ const AddRecord = () => {
     }
   };
 
+  const handleScreenshot = async (file: File | null) => {
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setAlertMessage('Please upload an image screenshot');
+      setAlertType('error');
+      return;
+    }
+
+    setIsScanning(true);
+    setAlertMessage(null);
+    setScreenshotName(file.name);
+
+    try {
+      const dataUrl = await fileToCompressedDataUrl(file);
+      const result = await extractExpenseFromScreenshot(dataUrl);
+
+      if (result.error || !result.data) {
+        setAlertMessage(result.error || 'Could not read screenshot');
+        setAlertType('error');
+        return;
+      }
+
+      const data = result.data;
+      setDescription(data.description);
+      if (data.amount !== null) setAmount(data.amount);
+      setCategory(data.category);
+      setMerchant(data.merchant);
+      setPaymentMethod(data.paymentMethod);
+      setDate(data.date);
+      setNote(data.note);
+      setAlertMessage('Details filled from screenshot — review and save');
+      setAlertType('success');
+    } catch {
+      setAlertMessage('Could not read this screenshot');
+      setAlertType('error');
+    } finally {
+      setIsScanning(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const resetDragState = () => {
+    dragDepthRef.current = 0;
+    setIsDragging(false);
+  };
+
+  const handleDragEnter = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isScanning) return;
+    dragDepthRef.current += 1;
+    if (e.dataTransfer.types.includes('Files')) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragLeave = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+    if (dragDepthRef.current === 0) {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isScanning) {
+      e.dataTransfer.dropEffect = 'copy';
+    }
+  };
+
+  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    resetDragState();
+    if (isScanning) return;
+
+    const file =
+      Array.from(e.dataTransfer.files).find((item) =>
+        item.type.startsWith('image/')
+      ) ?? null;
+
+    if (!file) {
+      setAlertMessage('Drop an image screenshot');
+      setAlertType('error');
+      return;
+    }
+
+    void handleScreenshot(file);
+  };
+
   return (
     <section className='panel p-5 sm:p-6'>
       <h2 className='panel-title mb-1'>Add expense</h2>
       <p className='panel-sub mb-5'>
         Log subscriptions, shopping, bills, and everyday spends
       </p>
+
+      <div
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+        className={`mb-5 rounded-xl border border-dashed p-4 transition-colors ${
+          isDragging
+            ? 'border-accent bg-accent/10 dark:bg-accent/10'
+            : 'border-zinc-300 dark:border-zinc-700 bg-zinc-50/70 dark:bg-zinc-900/40'
+        }`}
+      >
+        <div className='flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between'>
+          <div>
+            <p className='text-sm font-medium text-zinc-900 dark:text-white'>
+              {isDragging ? 'Drop screenshot here' : 'Scan payment screenshot'}
+            </p>
+            <p className='text-xs text-zinc-500 dark:text-zinc-400 mt-0.5'>
+              Drag & drop or upload a UPI / Paytm / GPay receipt to auto-fill
+            </p>
+            {screenshotName && (
+              <p className='text-xs text-zinc-500 mt-1 truncate max-w-[240px]'>
+                {isScanning ? 'Reading…' : screenshotName}
+              </p>
+            )}
+          </div>
+          <div className='flex items-center gap-2'>
+            <input
+              ref={fileInputRef}
+              type='file'
+              accept='image/*'
+              className='hidden'
+              onChange={(e) => handleScreenshot(e.target.files?.[0] ?? null)}
+            />
+            <button
+              type='button'
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isScanning}
+              className='btn-ghost text-sm !px-3.5 !py-2 disabled:opacity-50'
+            >
+              {isScanning ? 'Scanning…' : 'Upload screenshot'}
+            </button>
+          </div>
+        </div>
+      </div>
 
       <form
         ref={formRef}
@@ -128,6 +306,8 @@ const AddRecord = () => {
               type='text'
               id='merchant'
               name='merchant'
+              value={merchant}
+              onChange={(e) => setMerchant(e.target.value)}
               className='input-field'
               placeholder='Netflix, Flipkart…'
             />
@@ -140,6 +320,8 @@ const AddRecord = () => {
               type='date'
               name='date'
               id='date'
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
               className='input-field'
               required
               onFocus={(e) => e.target.showPicker()}
@@ -225,6 +407,8 @@ const AddRecord = () => {
               type='text'
               id='note'
               name='note'
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
               className='input-field'
               placeholder='Monthly plan, gift…'
             />

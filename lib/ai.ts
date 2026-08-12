@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { EXPENSE_CATEGORIES, PAYMENT_METHODS } from '@/lib/expenseMeta';
 
 interface RawInsight {
   type?: string;
@@ -29,6 +30,54 @@ function getOpenAI() {
     },
   });
 }
+
+const TEXT_MODELS = [
+  'google/gemini-2.5-flash-lite',
+  'qwen/qwen3.5-flash-02-23',
+  'deepseek/deepseek-chat-v3-0324',
+  'google/gemma-4-26b-a4b-it:free',
+];
+
+type ChatMessage = {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+};
+
+async function chatCompletion(options: {
+  messages: ChatMessage[];
+  temperature?: number;
+  max_tokens?: number;
+}): Promise<string> {
+  const openai = getOpenAI();
+  let lastError: unknown;
+
+  for (const model of TEXT_MODELS) {
+    try {
+      const completion = await openai.chat.completions.create({
+        model,
+        messages: options.messages,
+        temperature: options.temperature ?? 0.5,
+        max_tokens: options.max_tokens ?? 400,
+        // @ts-expect-error OpenRouter-specific routing hint
+        provider: { sort: 'latency' },
+      });
+
+      const content = completion.choices[0]?.message?.content?.trim();
+      if (content) {
+        return content;
+      }
+    } catch (error) {
+      lastError = error;
+      console.warn(`Text model failed (${model}):`, error);
+    }
+  }
+
+  if (lastError instanceof Error) {
+    throw lastError;
+  }
+  throw new Error('No response from AI');
+}
+
 
 export interface ExpenseRecord {
   id: string;
@@ -88,7 +137,6 @@ export async function generateExpenseInsights(
       ];
     }
 
-    const openai = getOpenAI();
     const expensesSummary = expenses.map((expense) => ({
       amount: expense.amount,
       category: expense.category,
@@ -117,8 +165,7 @@ export async function generateExpenseInsights(
 
     Return only valid JSON array, no additional text.`;
 
-    const completion = await openai.chat.completions.create({
-      model: 'deepseek/deepseek-chat-v3-0324:free',
+    const response = await chatCompletion({
       messages: [
         {
           role: 'system',
@@ -133,11 +180,6 @@ export async function generateExpenseInsights(
       temperature: 0.7,
       max_tokens: 1000,
     });
-
-    const response = completion.choices[0].message.content;
-    if (!response) {
-      throw new Error('No response from AI');
-    }
 
     let cleanedResponse = response.trim();
     if (cleanedResponse.startsWith('```json')) {
@@ -183,25 +225,23 @@ export async function categorizeExpense(description: string): Promise<string> {
       return fallbackCategory(description);
     }
 
-    const openai = getOpenAI();
-    const completion = await openai.chat.completions.create({
-      model: 'deepseek/deepseek-chat-v3-0324:free',
-      messages: [
-        {
-          role: 'system',
-          content:
-            'You are an expense categorization AI. Categorize expenses into one of these categories: Food, Transportation, Entertainment, Shopping, Bills, Healthcare, Other. Respond with only the category name.',
-        },
-        {
-          role: 'user',
-          content: `Categorize this expense: "${description}"`,
-        },
-      ],
-      temperature: 0.1,
-      max_tokens: 20,
-    });
-
-    const category = completion.choices[0].message.content?.trim();
+    const category = (
+      await chatCompletion({
+        messages: [
+          {
+            role: 'system',
+            content:
+              'You are an expense categorization AI. Categorize expenses into one of these categories: Food, Transportation, Entertainment, Shopping, Bills, Healthcare, Other. Respond with only the category name.',
+          },
+          {
+            role: 'user',
+            content: `Categorize this expense: "${description}"`,
+          },
+        ],
+        temperature: 0.1,
+        max_tokens: 20,
+      })
+    ).trim();
 
     const validCategories = [
       'Food',
@@ -220,6 +260,165 @@ export async function categorizeExpense(description: string): Promise<string> {
   }
 }
 
+export interface ExtractedExpense {
+  description: string;
+  amount: number | null;
+  category: string;
+  merchant: string;
+  paymentMethod: string;
+  date: string;
+  note: string;
+}
+
+const VALID_CATEGORIES = EXPENSE_CATEGORIES.map((c) => c.value);
+const VALID_PAYMENT_METHODS = PAYMENT_METHODS.map((p) => p.value);
+
+function parseJsonObject(raw: string): Record<string, unknown> {
+  let cleaned = raw.trim();
+  if (cleaned.startsWith('```json')) {
+    cleaned = cleaned.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+  } else if (cleaned.startsWith('```')) {
+    cleaned = cleaned.replace(/^```\s*/, '').replace(/\s*```$/, '');
+  }
+
+  try {
+    return JSON.parse(cleaned) as Record<string, unknown>;
+  } catch {
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    if (!match) {
+      throw new Error('AI returned invalid JSON');
+    }
+    return JSON.parse(match[0]) as Record<string, unknown>;
+  }
+}
+
+function normalizeDate(value: unknown): string {
+  if (typeof value !== 'string' || !value.trim()) {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  const trimmed = value.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  const parsed = new Date(trimmed);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toISOString().slice(0, 10);
+  }
+
+  return new Date().toISOString().slice(0, 10);
+}
+
+export async function extractExpenseFromScreenshot(
+  imageDataUrl: string
+): Promise<ExtractedExpense> {
+  if (!getApiKey()) {
+    throw new Error(
+      'AI is not configured. Add OPENROUTER_API_KEY to .env and restart.'
+    );
+  }
+
+  if (!imageDataUrl.startsWith('data:image/')) {
+    throw new Error('Invalid image data');
+  }
+
+  const openai = getOpenAI();
+  const instruction = `Read this payment screenshot. Reply with ONLY JSON:
+{"description":"short text","amount":0,"category":"${VALID_CATEGORIES.join('|')}","merchant":"","paymentMethod":"${VALID_PAYMENT_METHODS.join('|')}|","date":"YYYY-MM-DD","note":""}
+Use null/"" when unclear. No markdown.`;
+
+  // Fast paid-lite first, then small free VL fallbacks (skip slow free router)
+  const visionModels = [
+    'google/gemini-2.5-flash-lite',
+    'qwen/qwen3.5-flash-02-23',
+    'nvidia/nemotron-nano-12b-v2-vl:free',
+    'google/gemma-4-26b-a4b-it:free',
+  ];
+
+  let response: string | null | undefined;
+  let lastError: unknown;
+
+  for (const model of visionModels) {
+    try {
+      const completion = await openai.chat.completions.create({
+        model,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: instruction },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: imageDataUrl,
+                  detail: 'low',
+                },
+              },
+            ],
+          },
+        ],
+        temperature: 0,
+        max_tokens: 180,
+        // OpenRouter: pick the quickest provider when available
+        // @ts-expect-error OpenRouter-specific routing hint
+        provider: { sort: 'latency' },
+      });
+
+      response = completion.choices[0]?.message?.content;
+      if (response?.trim()) {
+        break;
+      }
+    } catch (error) {
+      lastError = error;
+      console.warn(`Vision model failed (${model}):`, error);
+    }
+  }
+
+  if (!response?.trim()) {
+    if (lastError instanceof Error) {
+      throw lastError;
+    }
+    throw new Error('No response from AI');
+  }
+
+  const parsed = parseJsonObject(response);
+  const amountRaw = parsed.amount;
+  const amount =
+    typeof amountRaw === 'number'
+      ? amountRaw
+      : typeof amountRaw === 'string'
+        ? parseFloat(amountRaw.replace(/[^\d.]/g, ''))
+        : null;
+
+  const category =
+    typeof parsed.category === 'string' &&
+    VALID_CATEGORIES.includes(parsed.category as (typeof VALID_CATEGORIES)[number])
+      ? parsed.category
+      : 'Other';
+
+  const paymentMethod =
+    typeof parsed.paymentMethod === 'string' &&
+    VALID_PAYMENT_METHODS.includes(
+      parsed.paymentMethod as (typeof VALID_PAYMENT_METHODS)[number]
+    )
+      ? parsed.paymentMethod
+      : '';
+
+  return {
+    description:
+      typeof parsed.description === 'string' && parsed.description.trim()
+        ? parsed.description.trim()
+        : 'Payment',
+    amount: amount !== null && !Number.isNaN(amount) ? amount : null,
+    category,
+    merchant: typeof parsed.merchant === 'string' ? parsed.merchant.trim() : '',
+    paymentMethod,
+    date: normalizeDate(parsed.date),
+    note: typeof parsed.note === 'string' ? parsed.note.trim() : '',
+  };
+}
+
 export async function generateAIAnswer(
   question: string,
   context: ExpenseRecord[]
@@ -229,7 +428,6 @@ export async function generateAIAnswer(
       return 'AI is not configured yet. Add OPENROUTER_API_KEY to .env and restart the server.';
     }
 
-    const openai = getOpenAI();
     const expensesSummary = context.map((expense) => ({
       amount: expense.amount,
       category: expense.category,
@@ -250,8 +448,7 @@ export async function generateAIAnswer(
     
     Return only the answer text, no additional formatting.`;
 
-    const completion = await openai.chat.completions.create({
-      model: 'deepseek/deepseek-chat-v3-0324:free',
+    return await chatCompletion({
       messages: [
         {
           role: 'system',
@@ -263,16 +460,9 @@ export async function generateAIAnswer(
           content: prompt,
         },
       ],
-      temperature: 0.7,
-      max_tokens: 200,
+      temperature: 0.5,
+      max_tokens: 220,
     });
-
-    const response = completion.choices[0].message.content;
-    if (!response) {
-      throw new Error('No response from AI');
-    }
-
-    return response.trim();
   } catch (error) {
     console.error('❌ Error generating AI answer:', error);
     return "I'm unable to provide a detailed answer at the moment. Please try refreshing the insights or check your connection.";

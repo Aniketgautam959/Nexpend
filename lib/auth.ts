@@ -1,5 +1,6 @@
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
+import { cache } from 'react';
 import { db } from '@/lib/db';
 
 const COOKIE_NAME = 'auth_token';
@@ -57,14 +58,15 @@ export async function clearAuthCookie() {
   cookieStore.delete(COOKIE_NAME);
 }
 
-export async function getSessionUserId(): Promise<string | null> {
+export const getSessionUserId = cache(async (): Promise<string | null> => {
   const cookieStore = await cookies();
   const token = cookieStore.get(COOKIE_NAME)?.value;
   if (!token) return null;
   return verifyToken(token);
-}
+});
 
-export async function getCurrentUser(): Promise<SessionUser | null> {
+/** Deduped per request — layout + page share one DB lookup */
+export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
   const userId = await getSessionUserId();
   if (!userId) return null;
 
@@ -83,7 +85,7 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
   });
 
   return user;
-}
+});
 
 /** Alias used by expense actions — returns full DB user or null */
 export async function requireUser() {

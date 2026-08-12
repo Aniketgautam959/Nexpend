@@ -11,35 +11,20 @@ export async function getAIInsights(): Promise<AIInsight[]> {
       throw new Error('User not authenticated');
     }
 
-    const now = new Date();
-    const monthStart = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1));
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const [expenses, monthAgg, fullUser] = await Promise.all([
-      db.record.findMany({
-        where: {
-          userId: user.id,
-          createdAt: { gte: thirtyDaysAgo },
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 50,
-      }),
-      db.record.aggregate({
-        where: {
-          userId: user.id,
-          date: { gte: monthStart },
-        },
-        _sum: { amount: true },
-      }),
-      db.user.findUnique({
-        where: { id: user.id },
-        select: { monthlyIncome: true, savingsGoal: true },
-      }),
-    ]);
+    const expenses = await db.record.findMany({
+      where: {
+        userId: user.id,
+        createdAt: { gte: thirtyDaysAgo },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
 
     if (expenses.length === 0) {
-      const income = fullUser?.monthlyIncome;
+      const income = user.monthlyIncome;
       return [
         {
           id: 'welcome-1',
@@ -71,11 +56,7 @@ export async function getAIInsights(): Promise<AIInsight[]> {
       date: expense.createdAt.toISOString(),
     }));
 
-    const insights = await generateExpenseInsights(expenseData, {
-      monthlyIncome: fullUser?.monthlyIncome,
-      savingsGoal: fullUser?.savingsGoal,
-      spentThisMonth: monthAgg._sum.amount ?? 0,
-    });
+    const insights = await generateExpenseInsights(expenseData);
     return insights;
   } catch (error) {
     console.error('Error getting AI insights:', error);
