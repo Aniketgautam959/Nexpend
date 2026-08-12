@@ -1,5 +1,10 @@
 import OpenAI from 'openai';
-import { EXPENSE_CATEGORIES, PAYMENT_METHODS } from '@/lib/expenseMeta';
+import {
+  EXPENSE_CATEGORIES,
+  PAYMENT_METHODS,
+  formatMoney,
+  normalizeInrCurrency,
+} from '@/lib/expenseMeta';
 
 interface RawInsight {
   type?: string;
@@ -96,6 +101,13 @@ export interface AIInsight {
   confidence: number;
 }
 
+function formatAmountForAI(amount: number): string {
+  return formatMoney(amount);
+}
+
+const INR_SYSTEM_RULE =
+  'The user is in India. All money is in Indian Rupees (INR). Always use the ₹ symbol and en-IN number formatting. Never use $, USD, or dollars.';
+
 function fallbackCategory(description: string): string {
   const text = description.toLowerCase();
   if (/coffee|food|lunch|dinner|restaurant|grocery|pizza|cafe|snack/.test(text)) {
@@ -139,12 +151,14 @@ export async function generateExpenseInsights(
 
     const expensesSummary = expenses.map((expense) => ({
       amount: expense.amount,
+      amountInr: formatAmountForAI(expense.amount),
       category: expense.category,
       description: expense.description,
       date: expense.date,
     }));
 
-    const prompt = `Analyze the following expense data and provide 3-4 actionable financial insights. 
+    const prompt = `Analyze the following expense data and provide 3-4 actionable financial insights.
+    All amounts are in Indian Rupees (INR) — use ₹ in every message.
     Return a JSON array of insights with this structure:
     {
       "type": "warning|info|success|tip",
@@ -169,8 +183,7 @@ export async function generateExpenseInsights(
       messages: [
         {
           role: 'system',
-          content:
-            'You are a financial advisor AI that analyzes spending patterns and provides actionable insights. Always respond with valid JSON only.',
+          content: `${INR_SYSTEM_RULE} You analyze spending patterns and provide actionable insights. Always respond with valid JSON only.`,
         },
         {
           role: 'user',
@@ -197,9 +210,11 @@ export async function generateExpenseInsights(
     return insights.map((insight: RawInsight, index: number) => ({
       id: `ai-${Date.now()}-${index}`,
       type: insight.type || 'info',
-      title: insight.title || 'AI Insight',
-      message: insight.message || 'Analysis complete',
-      action: insight.action,
+      title: normalizeInrCurrency(insight.title || 'AI Insight'),
+      message: normalizeInrCurrency(insight.message || 'Analysis complete'),
+      action: insight.action
+        ? normalizeInrCurrency(insight.action)
+        : undefined,
       confidence: insight.confidence || 0.8,
     }));
   } catch (error) {
@@ -430,6 +445,7 @@ export async function generateAIAnswer(
 
     const expensesSummary = context.map((expense) => ({
       amount: expense.amount,
+      amountInr: formatAmountForAI(expense.amount),
       category: expense.category,
       description: expense.description,
       date: expense.date,
@@ -437,23 +453,24 @@ export async function generateAIAnswer(
 
     const prompt = `Based on the following expense data, provide a detailed and actionable answer to this question: "${question}"
 
+    All amounts are in Indian Rupees (INR). Use ₹ only — never $ or USD.
+
     Expense Data:
     ${JSON.stringify(expensesSummary, null, 2)}
 
     Provide a comprehensive answer that:
     1. Addresses the specific question directly
-    2. Uses concrete data from the expenses when possible
+    2. Uses concrete data from the expenses when possible (with ₹)
     3. Offers actionable advice
     4. Keeps the response concise but informative (2-3 sentences)
     
     Return only the answer text, no additional formatting.`;
 
-    return await chatCompletion({
+    const answer = await chatCompletion({
       messages: [
         {
           role: 'system',
-          content:
-            'You are a helpful financial advisor AI that provides specific, actionable answers based on expense data. Be concise but thorough.',
+          content: `${INR_SYSTEM_RULE} You provide specific, actionable answers based on expense data. Be concise but thorough.`,
         },
         {
           role: 'user',
@@ -463,6 +480,8 @@ export async function generateAIAnswer(
       temperature: 0.5,
       max_tokens: 220,
     });
+
+    return normalizeInrCurrency(answer);
   } catch (error) {
     console.error('❌ Error generating AI answer:', error);
     return "I'm unable to provide a detailed answer at the moment. Please try refreshing the insights or check your connection.";

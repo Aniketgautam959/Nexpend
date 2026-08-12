@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { getAIInsights } from '@/app/actions/getAIInsights';
 import { generateInsightAnswer } from '@/app/actions/generateInsightAnswer';
+import { normalizeInrCurrency } from '@/lib/expenseMeta';
 
 interface InsightData {
   id: string;
@@ -190,7 +191,7 @@ const AIInsights = () => {
                   {insight.title}
                 </h3>
                 <p className='text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed mb-2'>
-                  {insight.message}
+                  {normalizeInrCurrency(insight.message)}
                 </p>
                 {insight.action && (
                   <button
@@ -210,7 +211,7 @@ const AIInsights = () => {
                       </div>
                     ) : (
                       <p className='text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed'>
-                        {currentAnswer.answer}
+                        {normalizeInrCurrency(currentAnswer.answer)}
                       </p>
                     )}
                   </div>

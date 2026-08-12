@@ -8,32 +8,58 @@ datasource db {
 }
 
 model User {
-  id                 String   @id @default(uuid())
-  email              String   @unique
-  passwordHash       String   @default("")
+  id                 String             @id @default(uuid())
+  email              String             @unique
+  passwordHash       String             @default("")
   name               String?
   imageUrl           String?
   monthlyIncome      Float?
   savingsGoal        Float?
-  onboardingComplete Boolean  @default(false)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  onboardingComplete Boolean            @default(false)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
   Records            Record[]
+  RecurringExpenses  RecurringExpense[]
 }
 
 model Record {
-  id            String   @id @default(uuid())
-  text          String
-  amount        Float
-  category      String   @default("Other")
-  merchant      String?
-  paymentMethod String?
-  note          String?
-  date          DateTime @default(now())
-  userId        String
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt     DateTime @default(now())
+  id                 String            @id @default(uuid())
+  text               String
+  amount             Float
+  category           String            @default("Other")
+  merchant           String?
+  paymentMethod      String?
+  note               String?
+  date               DateTime          @default(now())
+  userId             String
+  user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recurringExpenseId String?
+  recurringExpense   RecurringExpense? @relation(fields: [recurringExpenseId], references: [id], onDelete: SetNull)
+  createdAt          DateTime          @default(now())
 
   @@index([userId])
   @@index([userId, date])
+  @@index([recurringExpenseId])
+}
+
+model RecurringExpense {
+  id            String   @id @default(uuid())
+  text          String
+  amount        Float
+  category      String   @default("Subscriptions")
+  merchant      String?
+  paymentMethod String?
+  note          String?
+  /// Day of month to charge (1–28)
+  dayOfMonth    Int
+  nextRunAt     DateTime
+  isActive      Boolean  @default(true)
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  records       Record[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId])
+  @@index([userId, isActive, nextRunAt])
 }

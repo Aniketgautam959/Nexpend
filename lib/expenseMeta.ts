@@ -31,6 +31,23 @@ export function formatMoney(amount: number) {
   })}`;
 }
 
+/** Replace $ / USD in AI text with ₹ (Indian users) */
+export function normalizeInrCurrency(text: string): string {
+  if (!text) return text;
+
+  return text
+    .replace(/\$\s?([\d,]+(?:\.\d{1,2})?)/g, (_, num: string) => {
+      const n = parseFloat(num.replace(/,/g, ''));
+      return Number.isNaN(n) ? `₹${num}` : formatMoney(n);
+    })
+    .replace(/USD\s?([\d,]+(?:\.\d{1,2})?)/gi, (_, num: string) => {
+      const n = parseFloat(num.replace(/,/g, ''));
+      return Number.isNaN(n) ? `₹${num}` : formatMoney(n);
+    })
+    .replace(/\bUSD\b/gi, 'INR')
+    .replace(/\bdollars?\b/gi, 'rupees');
+}
+
 export function categoryInitial(category: string) {
   return (category || 'O').charAt(0).toUpperCase();
 }

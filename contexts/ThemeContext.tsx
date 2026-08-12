@@ -15,7 +15,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>('dark');
   const [mounted, setMounted] = useState(false);
 
-  // Initialize theme on mount
+  // Initialize theme on mount — default to dark for new visitors
   useEffect(() => {
     const initializeTheme = () => {
       try {
@@ -23,14 +23,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         if (savedTheme === 'dark' || savedTheme === 'light') {
           setTheme(savedTheme);
         } else {
-          // No saved theme, check system preference
-          const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-          setTheme(systemPrefersDark ? 'dark' : 'light');
+          setTheme('dark');
         }
-      } catch (error) {
-        // Fallback to system preference if localStorage fails
-        const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        setTheme(systemPrefersDark ? 'dark' : 'light');
+      } catch {
+        setTheme('dark');
       }
       setMounted(true);
     };

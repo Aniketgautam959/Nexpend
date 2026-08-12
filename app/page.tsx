@@ -8,9 +8,11 @@ import ExpenseStats from '@/components/ExpenseStats';
 import Guest from '@/components/Guest';
 import MonthlyOverview from '@/components/MonthlyOverview';
 import RecordChart from '@/components/RecordChart';
+import RecurringExpenses from '@/components/RecurringExpenses';
 import { getDashboardData } from '@/lib/dashboard';
 import { getCurrentUser } from '@/lib/auth';
 import { formatMoney } from '@/lib/expenseMeta';
+import { processDueRecurringExpenses } from '@/app/actions/recurringExpenses';
 
 export default async function HomePage() {
   const user = await getCurrentUser();
@@ -21,6 +23,9 @@ export default async function HomePage() {
   if (!user.onboardingComplete) {
     redirect('/onboarding');
   }
+
+  // Auto-log Netflix / rent / SIPs that are due
+  await processDueRecurringExpenses();
 
   const {
     records,
@@ -97,15 +102,10 @@ export default async function HomePage() {
           />
         )}
 
-        <div className='grid grid-cols-1 lg:grid-cols-2 gap-5 lg:gap-6 items-start'>
-          <div className='space-y-5 lg:space-y-6'>
-            <AddNewRecord />
-          </div>
-          <div className='space-y-5 lg:space-y-6'>
-            <MonthlyOverview
-              key={records.length}
-              initialData={monthly}
-            />
+        <div className='grid grid-cols-1 lg:grid-cols-2 gap-5 items-stretch'>
+          <AddNewRecord />
+          <div className='flex flex-col gap-5 min-w-0'>
+            <MonthlyOverview key={records.length} initialData={monthly} />
             <RecordChart records={records} />
           </div>
         </div>
@@ -116,6 +116,8 @@ export default async function HomePage() {
           bestExpense={bestExpense}
           worstExpense={worstExpense}
         />
+
+        <RecurringExpenses />
 
         <Suspense
           fallback={
