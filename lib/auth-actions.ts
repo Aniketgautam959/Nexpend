@@ -10,6 +10,7 @@ import {
 } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
+import { ensureDemoUser } from '@/lib/demoAccount';
 
 export async function registerAction(formData: FormData) {
   const name = String(formData.get('name') || '').trim();
@@ -64,6 +65,13 @@ export async function loginAction(formData: FormData) {
   const token = await createToken(user.id);
   await setAuthCookie(token);
   redirect(user.onboardingComplete ? '/' : '/onboarding');
+}
+
+export async function demoLoginAction() {
+  const user = await ensureDemoUser();
+  const token = await createToken(user.id);
+  await setAuthCookie(token);
+  redirect('/');
 }
 
 export async function logoutAction() {

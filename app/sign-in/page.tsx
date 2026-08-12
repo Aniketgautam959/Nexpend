@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
-import { loginAction } from '@/lib/auth-actions';
+import { demoLoginAction, loginAction } from '@/lib/auth-actions';
+import { DEMO_EMAIL, DEMO_PASSWORD } from '@/lib/demoAccount';
 
 export default function SignInPage() {
   const [error, setError] = useState<string | null>(null);
@@ -63,6 +64,27 @@ export default function SignInPage() {
             {pending ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
+
+        <button
+          type='button'
+          disabled={pending}
+          onClick={() => {
+            setError(null);
+            startTransition(async () => {
+              await demoLoginAction();
+            });
+          }}
+          className='w-full mt-3 btn-ghost py-2.5 text-sm'
+        >
+          {pending ? 'Opening demo…' : 'Try demo account'}
+        </button>
+
+        <p className='mt-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-900/40 px-3.5 py-2.5 text-center text-xs text-zinc-500'>
+          Demo login:{' '}
+          <span className='text-zinc-700 dark:text-zinc-300'>{DEMO_EMAIL}</span>
+          {' / '}
+          <span className='text-zinc-700 dark:text-zinc-300'>{DEMO_PASSWORD}</span>
+        </p>
 
         <p className='text-sm text-zinc-500 mt-5 text-center'>
           No account?{' '}
