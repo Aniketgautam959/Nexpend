@@ -11,7 +11,11 @@ function createClient() {
 function getClient() {
   const existing = globalForPrisma.prisma;
   // After `prisma generate`, an old cached client may miss new models
-  if (existing && 'recurringExpense' in existing) {
+  if (
+    existing &&
+    'recurringExpense' in existing &&
+    'categoryBudget' in existing
+  ) {
     return existing;
   }
   const client = createClient();

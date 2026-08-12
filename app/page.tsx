@@ -9,6 +9,7 @@ import Guest from '@/components/Guest';
 import MonthlyOverview from '@/components/MonthlyOverview';
 import RecordChart from '@/components/RecordChart';
 import RecurringExpenses from '@/components/RecurringExpenses';
+import CategoryBudgets from '@/components/CategoryBudgets';
 import { getDashboardData } from '@/lib/dashboard';
 import { getCurrentUser } from '@/lib/auth';
 import { formatMoney } from '@/lib/expenseMeta';
@@ -46,50 +47,55 @@ export default async function HomePage() {
       <div className='max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-6'>
         <header className='flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6 pb-2 border-b border-zinc-200 dark:border-zinc-800'>
           <div className='flex items-center gap-3.5'>
-            <div className='h-11 w-11 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center text-sm font-semibold text-zinc-700 dark:text-zinc-200 overflow-hidden'>
-              {user.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={user.imageUrl}
-                  alt=''
-                  className='h-full w-full object-cover'
-                />
-              ) : (
-                displayName.charAt(0).toUpperCase()
-              )}
+            <div className='relative'>
+              <div className='h-11 w-11 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center text-sm font-semibold text-zinc-700 dark:text-zinc-200 overflow-hidden'>
+                {user.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={user.imageUrl}
+                    alt=''
+                    className='h-full w-full object-cover'
+                  />
+                ) : (
+                  displayName.charAt(0).toUpperCase()
+                )}
+              </div>
+              <span className='absolute -bottom-0.5 -right-0.5 h-5 w-5 rounded-md bg-accent text-accent-foreground text-[10px] font-bold flex items-center justify-center border-2 border-[var(--background)]'>
+                ₹
+              </span>
             </div>
             <div>
               <h1 className='text-xl sm:text-2xl font-semibold tracking-tight text-zinc-900 dark:text-white'>
                 {displayName}
               </h1>
-              <p className='text-sm text-zinc-500'>Monthly expense dashboard</p>
+              <p className='text-sm text-zinc-500'>Your wallet this month</p>
             </div>
           </div>
 
-          <div className='flex flex-wrap gap-x-6 gap-y-2 text-sm'>
-            <div>
-              <span className='text-zinc-500'>This month </span>
-              <span className='font-semibold text-zinc-900 dark:text-white tabular-nums'>
+          <div className='flex flex-wrap gap-x-5 gap-y-2 text-sm'>
+            <div className='rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-900/40 px-3.5 py-2'>
+              <p className='text-[10px] text-zinc-500 mb-0.5'>Spent</p>
+              <p className='font-semibold text-zinc-900 dark:text-white tabular-nums'>
                 {formatMoney(spentThisMonth)}
-              </span>
+              </p>
             </div>
-            <div>
-              <span className='text-zinc-500'>Left </span>
-              <span className='font-semibold text-zinc-900 dark:text-white tabular-nums'>
+            <div className='rounded-xl border border-accent/25 bg-accent/10 px-3.5 py-2'>
+              <p className='text-[10px] text-accent mb-0.5'>Left</p>
+              <p className='font-semibold text-accent tabular-nums'>
                 {formatMoney(monthlyIncome - spentThisMonth)}
-              </span>
+              </p>
             </div>
-            <div>
-              <span className='text-zinc-500'>Avg/day </span>
-              <span className='font-semibold text-zinc-900 dark:text-white tabular-nums'>
+            <div className='rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-900/40 px-3.5 py-2'>
+              <p className='text-[10px] text-zinc-500 mb-0.5'>Avg / day</p>
+              <p className='font-semibold text-zinc-900 dark:text-white tabular-nums'>
                 {formatMoney(avgDaily)}
-              </span>
+              </p>
             </div>
-            <div>
-              <span className='text-zinc-500'>High </span>
-              <span className='font-semibold text-zinc-900 dark:text-white tabular-nums'>
+            <div className='rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-900/40 px-3.5 py-2'>
+              <p className='text-[10px] text-zinc-500 mb-0.5'>High</p>
+              <p className='font-semibold text-zinc-900 dark:text-white tabular-nums'>
                 {bestExpense !== undefined ? formatMoney(bestExpense) : '—'}
-              </span>
+              </p>
             </div>
           </div>
         </header>
@@ -118,6 +124,8 @@ export default async function HomePage() {
         />
 
         <RecurringExpenses />
+
+        <CategoryBudgets />
 
         <Suspense
           fallback={
