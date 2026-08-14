@@ -1,12 +1,13 @@
 import { db } from '@/lib/db';
 import type { Record } from '@/types/Record';
 import type { MonthlyOverviewData } from '@/app/actions/getMonthlyOverview';
-
-function monthBounds(year: number, month: number) {
-  const start = new Date(Date.UTC(year, month, 1, 0, 0, 0));
-  const end = new Date(Date.UTC(year, month + 1, 1, 0, 0, 0));
-  return { start, end };
-}
+import {
+  computePlayMoney,
+  istMonthBounds,
+  istWeekStart,
+  ymdToUtcStart,
+  type PlayMoneySnapshot,
+} from '@/lib/playMoney';
 
 function buildMonthlyOverview(
   records: Array<{
@@ -75,16 +76,21 @@ export type DashboardData = {
   bestExpense?: number;
   worstExpense?: number;
   monthly: MonthlyOverviewData;
+  play: PlayMoneySnapshot;
 };
 
 /** One DB round-trip for the signed-in dashboard */
-export async function getDashboardData(userId: string): Promise<DashboardData> {
+export async function getDashboardData(
+  userId: string,
+  opts?: { monthlyIncome?: number | null; savingsGoal?: number | null }
+): Promise<DashboardData> {
   const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
-  const { start, end } = monthBounds(year, month);
+  const { today, startDate, endDate } = istMonthBounds(now);
+  const weekStart = ymdToUtcStart(istWeekStart(today));
+  const rangeStart =
+    weekStart.getTime() < startDate.getTime() ? weekStart : startDate;
 
-  const [records, monthRecords] = await Promise.all([
+  const [records, rangeRecords, recurring] = await Promise.all([
     db.record.findMany({
       where: { userId },
       orderBy: { date: 'desc' },
@@ -93,11 +99,25 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
     db.record.findMany({
       where: {
         userId,
-        date: { gte: start, lt: end },
+        date: { gte: rangeStart, lt: endDate },
       },
       orderBy: { date: 'desc' },
     }),
+    db.recurringExpense.findMany({
+      where: { userId },
+      select: {
+        id: true,
+        amount: true,
+        isActive: true,
+        isCommitted: true,
+      },
+    }),
   ]);
+
+  const monthRecords = rangeRecords.filter((r) => {
+    const t = r.date.getTime();
+    return t >= startDate.getTime() && t < endDate.getTime();
+  });
 
   const amounts = records.map((r) => r.amount);
   const uniqueDays = new Set(
@@ -109,12 +129,21 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
       })
   );
 
+  const play = computePlayMoney({
+    monthlyIncome: opts?.monthlyIncome ?? 0,
+    savingsGoal: opts?.savingsGoal ?? 0,
+    recurring,
+    records: rangeRecords,
+    now,
+  });
+
   return {
     records,
     totalSpent: amounts.reduce((sum, n) => sum + n, 0),
     daysWithRecords: uniqueDays.size,
     bestExpense: amounts.length ? Math.max(...amounts) : undefined,
     worstExpense: amounts.length ? Math.min(...amounts) : undefined,
-    monthly: buildMonthlyOverview(monthRecords, year, month),
+    monthly: buildMonthlyOverview(monthRecords, today.y, today.m - 1),
+    play,
   };
 }

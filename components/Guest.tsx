@@ -14,8 +14,8 @@ const features = [
     ),
   },
   {
-    title: 'Scan receipts',
-    body: 'Drop a Paytm / GPay screenshot and Nexpend fills amount and payee for you.',
+    title: 'Dump screenshots',
+    body: 'Drop up to 10 GPay / Paytm shots. Duplicate UPI payments skip automatically.',
     icon: (
       <path
         strokeLinecap='round'
@@ -26,8 +26,8 @@ const features = [
     ),
   },
   {
-    title: 'Know what’s left',
-    body: 'See budget left, recurring bills, and AI tips so you stay on track.',
+    title: 'Know this week’s play money',
+    body: 'Rent and SIPs stay locked. What’s left is what you can actually spend this week.',
     icon: (
       <path
         strokeLinecap='round'
@@ -80,8 +80,8 @@ const Guest = () => {
               </h1>
 
               <p className='guest-reveal guest-reveal-delay-2 text-base sm:text-lg text-zinc-500 dark:text-zinc-400 leading-relaxed max-w-md mx-auto lg:mx-0 mb-8'>
-                Track expenses in ₹, scan UPI receipts, set recurring bills, and
-                see exactly what’s left this month.
+                Track expenses in ₹, lock rent and SIPs, and see what you can
+                actually spend this week.
               </p>
 
               <div className='guest-reveal guest-reveal-delay-3 flex flex-col sm:flex-row gap-3 justify-center lg:justify-start'>
@@ -118,9 +118,11 @@ const Guest = () => {
                         </svg>
                       </div>
                       <div>
-                        <p className='text-[11px] text-zinc-400'>This month left</p>
+                        <p className='text-[11px] text-zinc-400'>
+                          You can spend this week
+                        </p>
                         <p className='text-xl font-semibold text-white tabular-nums tracking-tight'>
-                          ₹27,520
+                          ₹4,200
                         </p>
                       </div>
                     </div>
@@ -135,8 +137,8 @@ const Guest = () => {
                     />
                   </div>
                   <div className='flex justify-between mt-2 text-[11px] text-zinc-500'>
-                    <span>Spent ₹12,480</span>
-                    <span>Budget ₹40,000</span>
+                    <span>Play left ₹18,520</span>
+                    <span>Locked ₹12,000</span>
                   </div>
                 </div>
 
@@ -229,7 +231,7 @@ const Guest = () => {
               },
               {
                 q: 'Can I scan payment screenshots?',
-                a: 'Yes — upload or drag a UPI / Paytm / GPay receipt and Nexpend auto-fills the expense form for you to review.',
+                a: 'Yes — dump up to 10 UPI / Paytm / GPay screenshots at once. Nexpend reads them, skips duplicate payments, and saves the rest.',
               },
               {
                 q: 'Is Nexpend free?',

@@ -36,11 +36,19 @@ model Record {
   user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   recurringExpenseId String?
   recurringExpense   RecurringExpense? @relation(fields: [recurringExpenseId], references: [id], onDelete: SetNull)
+  /// Rent / SIP / EMI / recharge — not play money
+  isCommitted        Boolean           @default(false)
+  /// UPI / UTR / GPay transaction id when scanned from a screenshot
+  upiRef             String?
+  /// Stable key for duplicate UPI dumps (ref:… or amount+merchant+day)
+  fingerprint        String?
   createdAt          DateTime          @default(now())
 
   @@index([userId])
   @@index([userId, date])
   @@index([recurringExpenseId])
+  @@index([userId, upiRef])
+  @@index([userId, fingerprint])
 }
 
 model RecurringExpense {
@@ -55,6 +63,8 @@ model RecurringExpense {
   dayOfMonth    Int
   nextRunAt     DateTime
   isActive      Boolean  @default(true)
+  /// Locked into the month (rent, SIP, EMI) vs play money (OTT, food)
+  isCommitted   Boolean  @default(false)
   userId        String
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   records       Record[]

@@ -35,6 +35,7 @@ const RecordItem = ({ record }: { record: Record }) => {
   );
   const [note, setNote] = useState(record.note || '');
   const [date, setDate] = useState(toDateInput(record.date));
+  const [isCommitted, setIsCommitted] = useState(Boolean(record.isCommitted));
 
   const openEdit = () => {
     setText(record.text);
@@ -44,6 +45,7 @@ const RecordItem = ({ record }: { record: Record }) => {
     setPaymentMethod(record.paymentMethod || '');
     setNote(record.note || '');
     setDate(toDateInput(record.date));
+    setIsCommitted(Boolean(record.isCommitted));
     setError(null);
     setEditing(true);
   };
@@ -80,6 +82,7 @@ const RecordItem = ({ record }: { record: Record }) => {
         paymentMethod: paymentMethod || undefined,
         note: note || undefined,
         date,
+        isCommitted,
       });
       if (result.error) {
         setError(result.error);
@@ -120,6 +123,7 @@ const RecordItem = ({ record }: { record: Record }) => {
               year: 'numeric',
             })}
             {metaBits.length > 0 ? ` · ${metaBits.join(' · ')}` : ''}
+            {record.isCommitted ? ' · Locked' : ''}
             {record.note ? ` · ${record.note}` : ''}
           </p>
           {error && !editing && (
@@ -266,6 +270,22 @@ const RecordItem = ({ record }: { record: Record }) => {
               />
             </div>
           </div>
+          <label className='flex items-start gap-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3.5 py-3 cursor-pointer'>
+            <input
+              type='checkbox'
+              className='mt-0.5 accent-emerald-600'
+              checked={isCommitted}
+              onChange={(e) => setIsCommitted(e.target.checked)}
+            />
+            <span>
+              <span className='text-sm font-medium text-zinc-900 dark:text-white'>
+                Locked bill
+              </span>
+              <span className='block text-[11px] text-zinc-500 mt-0.5'>
+                Keep this out of play money
+              </span>
+            </span>
+          </label>
           {error && <p className='text-xs text-red-500'>{error}</p>}
           <div className='flex items-center gap-2'>
             <button

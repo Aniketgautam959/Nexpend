@@ -31,7 +31,7 @@ export async function getAIInsights(): Promise<AIInsight[]> {
           type: 'info',
           title: 'Ready to track',
           message: income
-            ? `Your monthly income is set to ₹${income.toLocaleString('en-IN')}. Add expenses to see what’s left and whether you’re hitting your savings goal.`
+            ? `Your monthly income is set to ₹${income.toLocaleString('en-IN')}. Add rent/SIPs as locked recurring, then we’ll show what you can actually spend this week.`
             : 'Start adding expenses to get personalized insights.',
           action: 'Add your first expense',
           confidence: 1.0,

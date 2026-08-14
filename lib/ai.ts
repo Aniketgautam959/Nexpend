@@ -5,6 +5,7 @@ import {
   formatMoney,
   normalizeInrCurrency,
 } from '@/lib/expenseMeta';
+import { normalizeUpiRef } from '@/lib/upiDedupe';
 
 interface RawInsight {
   type?: string;
@@ -283,6 +284,7 @@ export interface ExtractedExpense {
   paymentMethod: string;
   date: string;
   note: string;
+  upiRef: string;
 }
 
 const VALID_CATEGORIES = EXPENSE_CATEGORIES.map((c) => c.value);
@@ -339,22 +341,29 @@ export async function extractExpenseFromScreenshot(
   }
 
   const openai = getOpenAI();
-  const instruction = `You are reading an image for an expense tracker. Reply with ONLY JSON (no markdown).
-
-First decide what the image is:
-
-1) NOT a payment / invoice / bill / UPI / Paytm / GPay / PhonePe / bank transfer / receipt screen
-   (selfie, meme, random photo, chat, wallpaper, food photo without a bill, etc.)
-   → Return: {"status":"invalid","reason":"Not a payment or invoice screenshot"}
-   Do NOT invent amounts, merchants, or expense details.
-
-2) FAILED / unsuccessful payment
-   ("Your money has not been debited", payment failed, exceeded bank limit, declined, Retry)
-   → Return: {"status":"failed","reason":"short reason from the screen"}
-
-3) SUCCESSFUL payment OR clear invoice / bill / receipt with a real amount paid
-   → Return: {"status":"success","description":"short text","amount":123.45,"category":"${VALID_CATEGORIES.join('|')}","merchant":"","paymentMethod":"${VALID_PAYMENT_METHODS.join('|')}|","date":"YYYY-MM-DD","note":""}
-   amount must be a real number from the image. Use null only if amount is genuinely unreadable — never invent a default like 200.`;
+  const categoryHint = VALID_CATEGORIES.join('|');
+  const methodHint = VALID_PAYMENT_METHODS.join('|');
+  const instruction = [
+    'You are reading an image for an expense tracker. Reply with ONLY JSON (no markdown).',
+    '',
+    'First decide what the image is:',
+    '',
+    '1) NOT a payment / invoice / bill / UPI / Paytm / GPay / PhonePe / bank transfer / receipt screen',
+    '   (selfie, meme, random photo, chat, wallpaper, food photo without a bill, etc.)',
+    '   Return: {"status":"invalid","reason":"Not a payment or invoice screenshot"}',
+    '   Do NOT invent amounts, merchants, or expense details.',
+    '',
+    '2) FAILED / unsuccessful payment',
+    '   ("Your money has not been debited", payment failed, exceeded bank limit, declined, Retry)',
+    '   Return: {"status":"failed","reason":"short reason from the screen"}',
+    '',
+    '3) SUCCESSFUL payment OR clear invoice / bill / receipt with a real amount paid',
+    '   Return JSON with status success, description, amount, category, merchant, paymentMethod, date, note, upiRef.',
+    '   category must be one of: ' + categoryHint,
+    '   paymentMethod must be one of: ' + methodHint + ' or empty',
+    '   date must be YYYY-MM-DD. amount must be a real number from the image — never invent a default like 200.',
+    '   upiRef = UPI transaction ID / UTR / UPI Ref No / Google Pay transaction ID if clearly visible, else empty string. Never invent an ID.',
+  ].join('\n');
 
   // Fast paid-lite first, then small free VL fallbacks (skip slow free router)
   const visionModels = [
@@ -387,7 +396,7 @@ First decide what the image is:
           },
         ],
         temperature: 0,
-        max_tokens: 220,
+        max_tokens: 280,
         // OpenRouter: pick the quickest provider when available
         // @ts-expect-error OpenRouter-specific routing hint
         provider: { sort: 'latency' },
@@ -399,7 +408,7 @@ First decide what the image is:
       }
     } catch (error) {
       lastError = error;
-      console.warn(`Vision model failed (${model}):`, error);
+      console.warn('Vision model failed (' + model + '):', error);
     }
   }
 
@@ -494,14 +503,22 @@ First decide what the image is:
       ? parsed.paymentMethod
       : '';
 
+  const date = normalizeDate(parsed.date);
+  const merchant =
+    typeof parsed.merchant === 'string' ? parsed.merchant.trim() : '';
+  const note = typeof parsed.note === 'string' ? parsed.note.trim() : '';
+  const upiRef =
+    typeof parsed.upiRef === 'string' ? normalizeUpiRef(parsed.upiRef) : '';
+
   return {
     description: description || 'Payment',
     amount,
     category,
-    merchant: typeof parsed.merchant === 'string' ? parsed.merchant.trim() : '',
+    merchant,
     paymentMethod,
-    date: normalizeDate(parsed.date),
-    note: typeof parsed.note === 'string' ? parsed.note.trim() : '',
+    date,
+    note,
+    upiRef,
   };
 }
 

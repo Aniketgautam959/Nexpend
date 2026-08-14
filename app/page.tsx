@@ -28,6 +28,7 @@ export default async function HomePage() {
   // Auto-log Netflix / rent / SIPs that are due
   await processDueRecurringExpenses();
 
+  const monthlyIncome = user.monthlyIncome ?? 0;
   const {
     records,
     totalSpent,
@@ -35,12 +36,14 @@ export default async function HomePage() {
     bestExpense,
     worstExpense,
     monthly,
-  } = await getDashboardData(user.id);
+    play,
+  } = await getDashboardData(user.id, {
+    monthlyIncome,
+    savingsGoal: user.savingsGoal,
+  });
 
-  const avgDaily = daysWithRecords > 0 ? totalSpent / daysWithRecords : 0;
   const displayName = user.name || user.email.split('@')[0];
   const spentThisMonth = monthly.total;
-  const monthlyIncome = user.monthlyIncome ?? 0;
 
   return (
     <main className='dash-bg min-h-screen text-foreground'>
@@ -68,45 +71,39 @@ export default async function HomePage() {
               <h1 className='text-xl sm:text-2xl font-semibold tracking-tight text-zinc-900 dark:text-white'>
                 {displayName}
               </h1>
-              <p className='text-sm text-zinc-500'>Your wallet this month</p>
+              <p className='text-sm text-zinc-500'>Play money this week</p>
             </div>
           </div>
 
           <div className='flex flex-wrap gap-x-5 gap-y-2 text-sm'>
+            <div className='rounded-xl border border-accent/25 bg-accent/10 px-3.5 py-2'>
+              <p className='text-[10px] text-accent mb-0.5'>This week</p>
+              <p className='font-semibold text-accent tabular-nums'>
+                {formatMoney(Math.round(play.weekSpendable))}
+              </p>
+            </div>
+            <div className='rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-900/40 px-3.5 py-2'>
+              <p className='text-[10px] text-zinc-500 mb-0.5'>Play left</p>
+              <p className='font-semibold text-zinc-900 dark:text-white tabular-nums'>
+                {formatMoney(play.playLeftMonth)}
+              </p>
+            </div>
+            <div className='rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-900/40 px-3.5 py-2'>
+              <p className='text-[10px] text-zinc-500 mb-0.5'>Locked</p>
+              <p className='font-semibold text-zinc-900 dark:text-white tabular-nums'>
+                {formatMoney(play.lockedMonthly)}
+              </p>
+            </div>
             <div className='rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-900/40 px-3.5 py-2'>
               <p className='text-[10px] text-zinc-500 mb-0.5'>Spent</p>
               <p className='font-semibold text-zinc-900 dark:text-white tabular-nums'>
                 {formatMoney(spentThisMonth)}
               </p>
             </div>
-            <div className='rounded-xl border border-accent/25 bg-accent/10 px-3.5 py-2'>
-              <p className='text-[10px] text-accent mb-0.5'>Left</p>
-              <p className='font-semibold text-accent tabular-nums'>
-                {formatMoney(monthlyIncome - spentThisMonth)}
-              </p>
-            </div>
-            <div className='rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-900/40 px-3.5 py-2'>
-              <p className='text-[10px] text-zinc-500 mb-0.5'>Avg / day</p>
-              <p className='font-semibold text-zinc-900 dark:text-white tabular-nums'>
-                {formatMoney(avgDaily)}
-              </p>
-            </div>
-            <div className='rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-900/40 px-3.5 py-2'>
-              <p className='text-[10px] text-zinc-500 mb-0.5'>High</p>
-              <p className='font-semibold text-zinc-900 dark:text-white tabular-nums'>
-                {bestExpense !== undefined ? formatMoney(bestExpense) : '—'}
-              </p>
-            </div>
           </div>
         </header>
 
-        {monthlyIncome > 0 && (
-          <BudgetStrip
-            monthlyIncome={monthlyIncome}
-            savingsGoal={user.savingsGoal}
-            spentThisMonth={spentThisMonth}
-          />
-        )}
+        {monthlyIncome > 0 && <BudgetStrip play={play} />}
 
         <div className='grid grid-cols-1 lg:grid-cols-2 gap-5 items-start'>
           <AddNewRecord />

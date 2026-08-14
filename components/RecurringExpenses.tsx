@@ -6,10 +6,12 @@ import {
   addRecurringExpense,
   deleteRecurringExpense,
   getRecurringExpenses,
+  setRecurringCommitted,
   toggleRecurringExpense,
   type RecurringExpenseDTO,
 } from '@/app/actions/recurringExpenses';
 import { EXPENSE_CATEGORIES, PAYMENT_METHODS, formatMoney } from '@/lib/expenseMeta';
+import { defaultIsCommitted } from '@/lib/playMoney';
 
 export default function RecurringExpenses() {
   const router = useRouter();
@@ -25,6 +27,8 @@ export default function RecurringExpenses() {
   const [merchant, setMerchant] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('');
   const [dayOfMonth, setDayOfMonth] = useState(1);
+  const [isCommitted, setIsCommitted] = useState(false);
+  const [committedTouched, setCommittedTouched] = useState(false);
 
   const load = async () => {
     const result = await getRecurringExpenses();
@@ -53,6 +57,7 @@ export default function RecurringExpenses() {
       merchant: merchant || undefined,
       paymentMethod: paymentMethod || undefined,
       dayOfMonth,
+      isCommitted,
     });
     if (result.error) {
       setError(result.error);
@@ -64,12 +69,19 @@ export default function RecurringExpenses() {
     setPaymentMethod('');
     setDayOfMonth(1);
     setCategory('Subscriptions');
+    setIsCommitted(false);
+    setCommittedTouched(false);
     setOpen(false);
     refreshAll();
   };
 
   const handleToggle = async (id: string) => {
     await toggleRecurringExpense(id);
+    refreshAll();
+  };
+
+  const handleCommitted = async (id: string, next: boolean) => {
+    await setRecurringCommitted(id, next);
     refreshAll();
   };
 
@@ -84,7 +96,7 @@ export default function RecurringExpenses() {
         <div>
           <h2 className='panel-title'>Recurring</h2>
           <p className='panel-sub mt-0.5'>
-            Netflix, rent, SIPs — auto-logged each month
+            Locked bills stay out of play money. OTT stays in it.
           </p>
         </div>
         <button
@@ -107,7 +119,13 @@ export default function RecurringExpenses() {
               <input
                 className='input-field'
                 value={text}
-                onChange={(e) => setText(e.target.value)}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setText(next);
+                  if (!committedTouched) {
+                    setIsCommitted(defaultIsCommitted(category, next, merchant));
+                  }
+                }}
                 placeholder='Netflix, Rent, SIP…'
                 required
               />
@@ -134,7 +152,13 @@ export default function RecurringExpenses() {
               <select
                 className='input-field cursor-pointer'
                 value={category}
-                onChange={(e) => setCategory(e.target.value)}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setCategory(next);
+                  if (!committedTouched) {
+                    setIsCommitted(defaultIsCommitted(next, text, merchant));
+                  }
+                }}
               >
                 {EXPENSE_CATEGORIES.map((c) => (
                   <option key={c.value} value={c.value}>
@@ -166,7 +190,13 @@ export default function RecurringExpenses() {
               <input
                 className='input-field'
                 value={merchant}
-                onChange={(e) => setMerchant(e.target.value)}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setMerchant(next);
+                  if (!committedTouched) {
+                    setIsCommitted(defaultIsCommitted(category, text, next));
+                  }
+                }}
                 placeholder='Optional'
               />
             </div>
@@ -186,6 +216,25 @@ export default function RecurringExpenses() {
               </select>
             </div>
           </div>
+          <label className='flex items-start gap-3 rounded-xl border border-zinc-200 dark:border-zinc-800 px-3.5 py-3 cursor-pointer'>
+            <input
+              type='checkbox'
+              className='mt-0.5 accent-emerald-600'
+              checked={isCommitted}
+              onChange={(e) => {
+                setCommittedTouched(true);
+                setIsCommitted(e.target.checked);
+              }}
+            />
+            <span>
+              <span className='text-sm font-medium text-zinc-900 dark:text-white'>
+                Locked — rent, SIP, EMI, recharge
+              </span>
+              <span className='block text-[11px] text-zinc-500 mt-0.5'>
+                Comes out of salary before play money. Uncheck for Netflix / OTT.
+              </span>
+            </span>
+          </label>
           {error && <p className='text-xs text-red-500'>{error}</p>}
           <button
             type='submit'
@@ -202,7 +251,7 @@ export default function RecurringExpenses() {
       ) : items.length === 0 ? (
         <div className='rounded-2xl border border-dashed border-zinc-300 dark:border-zinc-700 py-8 text-center'>
           <p className='text-sm text-zinc-500'>
-            No recurring expenses yet. Add Netflix, rent, or a SIP.
+            No recurring yet. Add rent or a SIP as locked, Netflix as play.
           </p>
         </div>
       ) : (
@@ -221,6 +270,15 @@ export default function RecurringExpenses() {
                   }`}
                 >
                   {item.text}
+                  <span
+                    className={`ml-2 text-[10px] font-medium px-1.5 py-0.5 rounded-md ${
+                      item.isCommitted
+                        ? 'bg-zinc-200/80 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
+                        : 'bg-accent/15 text-accent'
+                    }`}
+                  >
+                    {item.isCommitted ? 'Locked' : 'Play'}
+                  </span>
                 </p>
                 <p className='text-xs text-zinc-500 mt-0.5'>
                   {formatMoney(item.amount)} · Day {item.dayOfMonth}
@@ -233,6 +291,13 @@ export default function RecurringExpenses() {
                 </p>
               </div>
               <div className='flex items-center gap-2 shrink-0'>
+                <button
+                  type='button'
+                  onClick={() => handleCommitted(item.id, !item.isCommitted)}
+                  className='text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-white underline-offset-2 hover:underline'
+                >
+                  {item.isCommitted ? 'Make play' : 'Lock'}
+                </button>
                 <button
                   type='button'
                   onClick={() => handleToggle(item.id)}

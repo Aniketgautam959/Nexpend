@@ -23,9 +23,8 @@ export default function OnboardingForm({ name }: { name: string }) {
           Hi {name}, set your monthly plan
         </h1>
         <p className='text-sm text-zinc-500 mb-6 leading-relaxed'>
-          Tell us your monthly income so we can show how much you spent, how
-          much is left, and how you’re tracking against your savings goal. AI
-          insights will use this too.
+          Tell us your monthly income so we can lock rent/SIPs, park savings,
+          and show what you can actually spend this week.
         </p>
 
         <form

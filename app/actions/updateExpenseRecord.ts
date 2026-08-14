@@ -19,6 +19,7 @@ export async function updateExpenseRecord(
     paymentMethod?: string;
     note?: string;
     date: string;
+    isCommitted?: boolean;
   }
 ): Promise<UpdateResult> {
   try {
@@ -59,6 +60,10 @@ export async function updateExpenseRecord(
         paymentMethod: input.paymentMethod?.trim() || null,
         note: input.note?.trim() || null,
         date,
+        isCommitted:
+          typeof input.isCommitted === 'boolean'
+            ? input.isCommitted
+            : existing.isCommitted,
       },
     });
 

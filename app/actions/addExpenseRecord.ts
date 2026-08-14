@@ -1,6 +1,12 @@
 'use server';
 import { db } from '@/lib/db';
 import { checkUsers } from '@/lib/checkUsers';
+import { defaultIsCommitted } from '@/lib/playMoney';
+import {
+  expenseFingerprint,
+  isSameUpiPayment,
+  normalizeUpiRef,
+} from '@/lib/upiDedupe';
 
 interface RecordData {
   text: string;
@@ -25,6 +31,8 @@ async function addExpenseRecord(formData: FormData): Promise<RecordResult> {
   const merchantValue = formData.get('merchant');
   const paymentMethodValue = formData.get('paymentMethod');
   const noteValue = formData.get('note');
+  const committedValue = formData.get('isCommitted');
+  const upiRefValue = formData.get('upiRef');
 
   if (
     !textValue ||
@@ -44,6 +52,12 @@ async function addExpenseRecord(formData: FormData): Promise<RecordResult> {
   const merchant = merchantValue?.toString().trim() || null;
   const paymentMethod = paymentMethodValue?.toString().trim() || null;
   const note = noteValue?.toString().trim() || null;
+  const isCommitted =
+    committedValue === 'true' || committedValue === 'on'
+      ? true
+      : committedValue === 'false'
+        ? false
+        : defaultIsCommitted(category, text, merchant || '');
 
   if (Number.isNaN(amount) || amount < 0) {
     return { error: 'Enter a valid amount' };
@@ -69,6 +83,52 @@ async function addExpenseRecord(formData: FormData): Promise<RecordResult> {
       return { error: 'Please sign in to add expenses' };
     }
 
+    const dateObj = new Date(date);
+    const upiRef = upiRefValue
+      ? normalizeUpiRef(upiRefValue.toString()) || null
+      : null;
+    const fingerprint = expenseFingerprint({
+      amount,
+      merchant: merchant || text,
+      text,
+      date: dateObj,
+      upiRef,
+    });
+
+    if (upiRef || formData.get('fromScreenshot') === 'true') {
+      const since = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
+      const recent = await db.record.findMany({
+        where: { userId: user.id, date: { gte: since } },
+        select: {
+          text: true,
+          amount: true,
+          merchant: true,
+          date: true,
+          upiRef: true,
+          fingerprint: true,
+        },
+        take: 400,
+      });
+      const dup = recent.find((row) =>
+        isSameUpiPayment(
+          {
+            amount,
+            merchant: merchant || text,
+            text,
+            date: dateObj,
+            upiRef,
+            fingerprint,
+          },
+          row
+        )
+      );
+      if (dup) {
+        return {
+          error: `Already logged — ${dup.text} · ₹${dup.amount}. Duplicate UPI skipped.`,
+        };
+      }
+    }
+
     const createdRecord = await db.record.create({
       data: {
         text,
@@ -79,6 +139,9 @@ async function addExpenseRecord(formData: FormData): Promise<RecordResult> {
         note,
         date,
         userId: user.id,
+        isCommitted,
+        upiRef,
+        fingerprint,
       },
     });
 

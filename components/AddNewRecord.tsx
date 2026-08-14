@@ -1,34 +1,14 @@
 'use client';
-import { useRef, useState, useTransition, type DragEvent } from 'react';
+import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import addExpenseRecord from '@/app/actions/addExpenseRecord';
 import { suggestCategory } from '@/app/actions/suggestCategory';
-import { extractExpenseFromScreenshot } from '@/app/actions/extractExpenseFromScreenshot';
 import { EXPENSE_CATEGORIES, PAYMENT_METHODS } from '@/lib/expenseMeta';
-
-async function fileToCompressedDataUrl(file: File): Promise<string> {
-  const bitmap = await createImageBitmap(file);
-  const maxSide = 768;
-  const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
-  const width = Math.max(1, Math.round(bitmap.width * scale));
-  const height = Math.max(1, Math.round(bitmap.height * scale));
-
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) {
-    throw new Error('Could not process image');
-  }
-  ctx.drawImage(bitmap, 0, 0, width, height);
-  bitmap.close();
-
-  return canvas.toDataURL('image/jpeg', 0.62);
-}
+import { defaultIsCommitted } from '@/lib/playMoney';
+import ScreenshotDump from '@/components/ScreenshotDump';
 
 const AddRecord = () => {
   const formRef = useRef<HTMLFormElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [amount, setAmount] = useState(199);
@@ -42,10 +22,8 @@ const AddRecord = () => {
   const [date, setDate] = useState('');
   const [note, setNote] = useState('');
   const [isCategorizingAI, setIsCategorizingAI] = useState(false);
-  const [isScanning, setIsScanning] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
-  const [screenshotName, setScreenshotName] = useState<string | null>(null);
-  const dragDepthRef = useRef(0);
+  const [isCommitted, setIsCommitted] = useState(false);
+  const [committedTouched, setCommittedTouched] = useState(false);
 
   const clientAction = async (formData: FormData) => {
     setIsLoading(true);
@@ -58,6 +36,7 @@ const AddRecord = () => {
     formData.set('merchant', merchant);
     formData.set('date', date);
     formData.set('note', note);
+    formData.set('isCommitted', isCommitted ? 'true' : 'false');
 
     const { error } = await addExpenseRecord(formData);
 
@@ -78,7 +57,8 @@ const AddRecord = () => {
     setMerchant('');
     setDate('');
     setNote('');
-    setScreenshotName(null);
+    setIsCommitted(false);
+    setCommittedTouched(false);
     setIsLoading(false);
     startTransition(() => {
       router.refresh();
@@ -102,6 +82,11 @@ const AddRecord = () => {
         setAlertType('error');
       } else {
         setCategory(result.category);
+        if (!committedTouched) {
+          setIsCommitted(
+            defaultIsCommitted(result.category, description, merchant)
+          );
+        }
         setAlertMessage(
           result.error ? result.error : `Category: ${result.category}`
         );
@@ -115,153 +100,15 @@ const AddRecord = () => {
     }
   };
 
-  const handleScreenshot = async (file: File | null) => {
-    if (!file) return;
-
-    if (!file.type.startsWith('image/')) {
-      setAlertMessage('Please upload an image screenshot');
-      setAlertType('error');
-      return;
-    }
-
-    setIsScanning(true);
-    setAlertMessage(null);
-    setScreenshotName(file.name);
-
-    try {
-      const dataUrl = await fileToCompressedDataUrl(file);
-      const result = await extractExpenseFromScreenshot(dataUrl);
-
-      if (result.error || !result.data) {
-        setAlertMessage(result.error || 'Could not read screenshot');
-        setAlertType('error');
-        return;
-      }
-
-      const data = result.data;
-      setDescription(data.description);
-      if (data.amount !== null) setAmount(data.amount);
-      setCategory(data.category);
-      setMerchant(data.merchant);
-      setPaymentMethod(data.paymentMethod);
-      setDate(data.date);
-      setNote(data.note);
-      setAlertMessage('Details filled from screenshot — review and save');
-      setAlertType('success');
-    } catch {
-      setAlertMessage('Could not read this screenshot');
-      setAlertType('error');
-    } finally {
-      setIsScanning(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
-  };
-
-  const resetDragState = () => {
-    dragDepthRef.current = 0;
-    setIsDragging(false);
-  };
-
-  const handleDragEnter = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (isScanning) return;
-    dragDepthRef.current += 1;
-    if (e.dataTransfer.types.includes('Files')) {
-      setIsDragging(true);
-    }
-  };
-
-  const handleDragLeave = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
-    if (dragDepthRef.current === 0) {
-      setIsDragging(false);
-    }
-  };
-
-  const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!isScanning) {
-      e.dataTransfer.dropEffect = 'copy';
-    }
-  };
-
-  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    resetDragState();
-    if (isScanning) return;
-
-    const file =
-      Array.from(e.dataTransfer.files).find((item) =>
-        item.type.startsWith('image/')
-      ) ?? null;
-
-    if (!file) {
-      setAlertMessage('Drop an image screenshot');
-      setAlertType('error');
-      return;
-    }
-
-    void handleScreenshot(file);
-  };
-
   return (
     <section className='panel p-5 sm:p-6'>
       <h2 className='panel-title mb-1'>Add expense</h2>
       <p className='panel-sub mb-5'>
-        Log subscriptions, shopping, bills, and everyday spends
+        Dump screenshots, or type one spend. Rent / SIP belong in Recurring as
+        locked.
       </p>
 
-      <div
-        onDragEnter={handleDragEnter}
-        onDragLeave={handleDragLeave}
-        onDragOver={handleDragOver}
-        onDrop={handleDrop}
-        className={`mb-5 rounded-xl border border-dashed p-4 transition-colors ${
-          isDragging
-            ? 'border-accent bg-accent/10 dark:bg-accent/10'
-            : 'border-zinc-300 dark:border-zinc-700 bg-zinc-50/70 dark:bg-zinc-900/40'
-        }`}
-      >
-        <div className='flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between'>
-          <div>
-            <p className='text-sm font-medium text-zinc-900 dark:text-white'>
-              {isDragging ? 'Drop screenshot here' : 'Scan payment screenshot'}
-            </p>
-            <p className='text-xs text-zinc-500 dark:text-zinc-400 mt-0.5'>
-              Only UPI / Paytm / invoice receipts — random photos are rejected
-            </p>
-            {screenshotName && (
-              <p className='text-xs text-zinc-500 mt-1 truncate max-w-[240px]'>
-                {isScanning ? 'Reading…' : screenshotName}
-              </p>
-            )}
-          </div>
-          <div className='flex items-center gap-2'>
-            <input
-              ref={fileInputRef}
-              type='file'
-              accept='image/*'
-              className='hidden'
-              onChange={(e) => handleScreenshot(e.target.files?.[0] ?? null)}
-            />
-            <button
-              type='button'
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isScanning}
-              className='btn-ghost text-sm !px-3.5 !py-2 disabled:opacity-50'
-            >
-              {isScanning ? 'Scanning…' : 'Upload screenshot'}
-            </button>
-          </div>
-        </div>
-      </div>
+      <ScreenshotDump />
 
       <form
         ref={formRef}
@@ -290,7 +137,13 @@ const AddRecord = () => {
             id='text'
             name='text'
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            onChange={(e) => {
+              const next = e.target.value;
+              setDescription(next);
+              if (!committedTouched) {
+                setIsCommitted(defaultIsCommitted(category, next, merchant));
+              }
+            }}
             className='input-field'
             placeholder='YouTube Premium, Amazon order, Jio recharge…'
             required
@@ -307,7 +160,13 @@ const AddRecord = () => {
               id='merchant'
               name='merchant'
               value={merchant}
-              onChange={(e) => setMerchant(e.target.value)}
+              onChange={(e) => {
+                const next = e.target.value;
+                setMerchant(next);
+                if (!committedTouched) {
+                  setIsCommitted(defaultIsCommitted(category, description, next));
+                }
+              }}
               className='input-field'
               placeholder='Netflix, Flipkart…'
             />
@@ -360,7 +219,13 @@ const AddRecord = () => {
               id='category'
               name='category'
               value={category}
-              onChange={(e) => setCategory(e.target.value)}
+              onChange={(e) => {
+                const next = e.target.value;
+                setCategory(next);
+                if (!committedTouched) {
+                  setIsCommitted(defaultIsCommitted(next, description, merchant));
+                }
+              }}
               className='input-field cursor-pointer'
               required
             >
@@ -414,6 +279,26 @@ const AddRecord = () => {
             />
           </div>
         </div>
+
+        <label className='flex items-start gap-3 rounded-xl border border-zinc-200 dark:border-zinc-800 px-3.5 py-3 cursor-pointer'>
+          <input
+            type='checkbox'
+            className='mt-0.5 accent-emerald-600'
+            checked={isCommitted}
+            onChange={(e) => {
+              setCommittedTouched(true);
+              setIsCommitted(e.target.checked);
+            }}
+          />
+          <span>
+            <span className='text-sm font-medium text-zinc-900 dark:text-white'>
+              Locked bill
+            </span>
+            <span className='block text-[11px] text-zinc-500 mt-0.5'>
+              Rent, EMI, SIP, recharge — won’t eat this week’s play money
+            </span>
+          </span>
+        </label>
 
         <button
           type='submit'

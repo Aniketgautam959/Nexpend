@@ -68,7 +68,7 @@ export default function ProfileForm({ user }: { user: ProfileUser }) {
           <div className='mb-5'>
             <h2 className='panel-title'>Monthly plan</h2>
             <p className='panel-sub mt-0.5'>
-              Used for spent vs left and AI savings insights
+            Used for locked bills vs play money this week
             </p>
           </div>
           <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>

@@ -3,6 +3,8 @@
 import { db } from '@/lib/db';
 import { checkUsers } from '@/lib/checkUsers';
 import { revalidatePath } from 'next/cache';
+import { defaultIsCommitted } from '@/lib/playMoney';
+import { expenseFingerprint } from '@/lib/upiDedupe';
 
 export type RecurringExpenseDTO = {
   id: string;
@@ -15,6 +17,7 @@ export type RecurringExpenseDTO = {
   dayOfMonth: number;
   nextRunAt: string;
   isActive: boolean;
+  isCommitted: boolean;
 };
 
 function clampDay(day: number) {
@@ -68,6 +71,7 @@ export async function getRecurringExpenses(): Promise<{
         dayOfMonth: r.dayOfMonth,
         nextRunAt: r.nextRunAt.toISOString(),
         isActive: r.isActive,
+        isCommitted: r.isCommitted,
       })),
     };
   } catch (error) {
@@ -84,6 +88,7 @@ export async function addRecurringExpense(input: {
   paymentMethod?: string;
   note?: string;
   dayOfMonth: number;
+  isCommitted?: boolean;
 }): Promise<{ error?: string; id?: string }> {
   try {
     const user = await checkUsers();
@@ -95,6 +100,10 @@ export async function addRecurringExpense(input: {
 
     const dayOfMonth = clampDay(input.dayOfMonth || 1);
     const nextRunAt = computeNextRunAt(dayOfMonth);
+    const isCommitted =
+      typeof input.isCommitted === 'boolean'
+        ? input.isCommitted
+        : defaultIsCommitted(input.category || 'Subscriptions', text);
 
     const created = await db.recurringExpense.create({
       data: {
@@ -106,6 +115,7 @@ export async function addRecurringExpense(input: {
         note: input.note?.trim() || 'Recurring',
         dayOfMonth,
         nextRunAt,
+        isCommitted,
         userId: user.id,
       },
     });
@@ -144,6 +154,32 @@ export async function toggleRecurringExpense(
     return {};
   } catch (error) {
     console.error('toggleRecurringExpense:', error);
+    return { error: 'Could not update' };
+  }
+}
+
+export async function setRecurringCommitted(
+  id: string,
+  isCommitted: boolean
+): Promise<{ error?: string }> {
+  try {
+    const user = await checkUsers();
+    if (!user) return { error: 'Please sign in' };
+
+    const row = await db.recurringExpense.findFirst({
+      where: { id, userId: user.id },
+    });
+    if (!row) return { error: 'Not found' };
+
+    await db.recurringExpense.update({
+      where: { id },
+      data: { isCommitted },
+    });
+
+    revalidatePath('/');
+    return {};
+  } catch (error) {
+    console.error('setRecurringCommitted:', error);
     return { error: 'Could not update' };
   }
 }
@@ -208,6 +244,13 @@ export async function processDueRecurringExpenses(): Promise<{
             date: next,
             userId: user.id,
             recurringExpenseId: item.id,
+            isCommitted: item.isCommitted,
+            fingerprint: expenseFingerprint({
+              amount: item.amount,
+              merchant: item.merchant || item.text,
+              text: item.text,
+              date: next,
+            }),
           },
         });
         logged += 1;

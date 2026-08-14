@@ -8,5 +8,9 @@ export interface Record {
   paymentMethod?: string | null;
   note?: string | null;
   userId: string;
+  recurringExpenseId?: string | null;
+  isCommitted?: boolean;
+  upiRef?: string | null;
+  fingerprint?: string | null;
   createdAt: Date;
 }

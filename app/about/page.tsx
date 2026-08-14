@@ -33,9 +33,8 @@ const AboutPage = () => {
               </h1>
 
               <p className='text-base sm:text-lg text-zinc-500 dark:text-zinc-400 leading-relaxed max-w-md mx-auto lg:mx-0 mb-8'>
-                Nexpend helps you track UPI, cards, and bills in ₹ — with
-                screenshot scan, recurring expenses, and AI that speaks money,
-                not jargon.
+                Nexpend helps you track UPI, cards, and bills in ₹ — lock rent
+                and SIPs, then see what you can actually spend this week.
               </p>
 
               <div className='flex flex-col sm:flex-row gap-3 justify-center lg:justify-start'>
@@ -94,7 +93,7 @@ const AboutPage = () => {
                 <ul className='space-y-2.5 text-left'>
                   {[
                     { label: 'UPI & card tracking', value: '₹' },
-                    { label: 'Receipt screenshot scan', value: '₹' },
+                    { label: 'Dump 10 UPI screenshots', value: '₹' },
                     { label: 'Recurring bills & SIPs', value: '₹' },
                   ].map((row) => (
                     <li
@@ -145,13 +144,13 @@ const AboutPage = () => {
           <div className='grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-10'>
             {[
               {
-                title: 'Know what’s left',
-                body: 'Income, spent, and remaining — so you always see how much wallet you have this month.',
+                title: 'Know this week’s play money',
+                body: 'Rent, SIPs, and EMIs stay locked. What’s left is what you can actually spend this week.',
                 icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
               },
               {
-                title: 'Scan & auto-fill',
-                body: 'Drop a Paytm or GPay screenshot and we fill amount, merchant, and category for you.',
+                title: 'Dump screenshots',
+                body: 'Dump up to 10 Paytm or GPay screenshots. Duplicate UPI payments are skipped.',
                 icon: 'M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z',
               },
               {
