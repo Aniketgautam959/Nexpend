@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
+import { CORS_HEADERS } from '@/lib/cors';
 
 const COOKIE_NAME = 'auth_token';
 
@@ -22,6 +23,18 @@ async function getUserId(request: NextRequest) {
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  if (pathname.startsWith('/api/v1')) {
+    if (request.method === 'OPTIONS') {
+      return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
+    }
+    const res = NextResponse.next();
+    for (const [key, value] of Object.entries(CORS_HEADERS)) {
+      res.headers.set(key, value);
+    }
+    return res;
+  }
+
   const userId = await getUserId(request);
 
   const isAuthPage =
@@ -46,5 +59,6 @@ export const config = {
     '/sign-in/:path*',
     '/sign-up/:path*',
     '/onboarding/:path*',
+    '/api/v1/:path*',
   ],
 };

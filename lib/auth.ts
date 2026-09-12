@@ -3,8 +3,19 @@ import { cookies } from 'next/headers';
 import { cache } from 'react';
 import { db } from '@/lib/db';
 
-const COOKIE_NAME = 'auth_token';
-const WEEK = 60 * 60 * 24 * 7;
+export const COOKIE_NAME = 'auth_token';
+export const TOKEN_TTL_SECONDS = 60 * 60 * 24 * 7;
+
+export const SESSION_USER_SELECT = {
+  id: true,
+  email: true,
+  name: true,
+  imageUrl: true,
+  monthlyIncome: true,
+  savingsGoal: true,
+  onboardingComplete: true,
+  createdAt: true,
+} as const;
 
 function getSecret() {
   const secret = process.env.JWT_SECRET;
@@ -29,7 +40,7 @@ export async function createToken(userId: string) {
   return new SignJWT({ sub: userId })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
-    .setExpirationTime(`${WEEK}s`)
+    .setExpirationTime(`${TOKEN_TTL_SECONDS}s`)
     .sign(getSecret());
 }
 
@@ -49,7 +60,7 @@ export async function setAuthCookie(token: string) {
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
-    maxAge: WEEK,
+    maxAge: TOKEN_TTL_SECONDS,
   });
 }
 
@@ -72,16 +83,7 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
 
   const user = await db.user.findUnique({
     where: { id: userId },
-    select: {
-      id: true,
-      email: true,
-      name: true,
-      imageUrl: true,
-      monthlyIncome: true,
-      savingsGoal: true,
-      onboardingComplete: true,
-      createdAt: true,
-    },
+    select: SESSION_USER_SELECT,
   });
 
   return user;

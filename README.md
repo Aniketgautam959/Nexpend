@@ -63,6 +63,12 @@ Nexpend/
 │   ├── profile/                 # Account + monthly plan
 │   ├── sign-in/
 │   ├── sign-up/
+│   ├── api/v1/                  # REST API for React Native / Android
+│   │   ├── auth/                # register, login, demo, me, onboarding
+│   │   ├── expenses/
+│   │   ├── dashboard/
+│   │   ├── recurring/
+│   │   └── budgets/
 │   ├── layout.tsx
 │   ├── page.tsx                 # Landing (guest) or dashboard
 │   └── globals.css
@@ -80,6 +86,8 @@ Nexpend/
 │   ├── upiDedupe.ts             # UPI fingerprint / merchant match
 │   ├── dashboard.ts             # One-shot dashboard query
 │   ├── auth.ts                  # JWT session
+│   ├── auth-service.ts          # Shared login/register (web + mobile)
+│   ├── api.ts                   # Bearer auth + JSON helpers
 │   ├── db.ts                    # Prisma client
 │   ├── expenseMeta.ts           # Categories, ₹ formatting
 │   └── demoAccount.ts           # Demo login seed
@@ -186,6 +194,37 @@ Calendar math uses **Asia/Kolkata**. Expense dates are stored as UTC noon on the
 | `NEXT_PUBLIC_APP_URL` | No | OpenRouter referer header (defaults to localhost) |
 
 Never commit `.env` or `.env.local`.
+
+---
+
+## Mobile / React Native API
+
+Web and Android share the **same PostgreSQL database**. The React Native app must **not** connect to Postgres directly. It talks to this Next.js app over HTTPS.
+
+Base URL: `https://YOUR-DEPLOYED-NEXPEND-URL/api/v1`
+
+Auth: send `Authorization: Bearer <jwt>` on every protected request. The JWT is the same user as the website — login on phone, see the same expenses on web.
+
+| Method | Path | Auth | Purpose |
+| --- | --- | --- | --- |
+| GET | `/health` | No | Connectivity check |
+| GET | `/meta` | No | Categories + payment methods |
+| POST | `/auth/register` | No | Create account, returns JWT |
+| POST | `/auth/login` | No | Email/password, returns JWT |
+| POST | `/auth/demo` | No | Demo user, returns JWT |
+| GET | `/auth/me` | Yes | Current user |
+| PATCH | `/auth/me` | Yes | Update profile / income |
+| POST | `/auth/onboarding` | Yes | Income + savings goal |
+| POST | `/auth/logout` | Optional | Clears web cookie |
+| GET | `/dashboard` | Yes | Expenses + play money snapshot |
+| GET/POST | `/expenses` | Yes | List / add expense |
+| PATCH/DELETE | `/expenses/:id` | Yes | Edit / delete expense |
+| GET/POST | `/recurring` | Yes | List / add recurring |
+| PATCH/DELETE | `/recurring/:id` | Yes | Toggle / delete recurring |
+| GET/POST | `/budgets` | Yes | Category budgets |
+| DELETE | `/budgets/:id` | Yes | Delete budget |
+
+Copy-paste prompt for the Android app: [`MOBILE_APP_PROMPT.md`](./MOBILE_APP_PROMPT.md).
 
 ---
 
