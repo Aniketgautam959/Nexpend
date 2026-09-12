@@ -1,4 +1,3 @@
-import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import {
   getCurrentUser,
@@ -11,12 +10,18 @@ import { CORS_HEADERS } from '@/lib/cors';
 
 export { CORS_HEADERS };
 
-export function json(data: unknown, status = 200): NextResponse {
-  return NextResponse.json(data, { status, headers: CORS_HEADERS });
+export function json(data: unknown, status = 200): Response {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      'content-type': 'application/json',
+      ...CORS_HEADERS,
+    },
+  });
 }
 
-export function optionsResponse() {
-  return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
+export function optionsResponse(): Response {
+  return new Response(null, { status: 204, headers: CORS_HEADERS });
 }
 
 export async function readJson<T = Record<string, unknown>>(
@@ -60,6 +65,6 @@ export async function getApiUser(
   return getCurrentUser();
 }
 
-export function unauthorized() {
+export function unauthorized(): Response {
   return json({ ok: false, error: 'Please sign in' }, 401);
 }

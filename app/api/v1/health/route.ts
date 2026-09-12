@@ -9,5 +9,6 @@ export function GET(): Response {
     ok: true,
     service: 'nexpend',
     version: 'v1',
+    build: '2026-09-13-api-routes',
   });
 }
