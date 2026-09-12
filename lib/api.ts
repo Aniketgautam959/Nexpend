@@ -60,13 +60,17 @@ export async function getApiUser(
   return getCurrentUser();
 }
 
-export async function requireApiUser(request: Request) {
+export function unauthorized() {
+  return json({ ok: false, error: 'Please sign in' }, 401);
+}
+
+export async function requireApiUser(request: Request): Promise<{
+  user: SessionUser | null;
+  response: NextResponse;
+}> {
   const user = await getApiUser(request);
-  if (!user) {
-    return {
-      user: null as SessionUser | null,
-      response: json({ ok: false, error: 'Please sign in' }, 401),
-    };
-  }
-  return { user, response: null };
+  return {
+    user,
+    response: unauthorized(),
+  };
 }
