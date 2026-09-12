@@ -1,11 +1,11 @@
 import { json, optionsResponse } from '@/lib/api';
 import { clearAuthCookie } from '@/lib/auth';
 
-export function OPTIONS() {
+export function OPTIONS(): Response {
   return optionsResponse();
 }
 
-export async function POST() {
+export async function POST(): Promise<Response> {
   try {
     await clearAuthCookie();
   } catch {

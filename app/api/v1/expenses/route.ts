@@ -1,8 +1,9 @@
 import {
+  getApiUser,
   json,
   optionsResponse,
   readJson,
-  requireApiUser,
+  unauthorized,
 } from '@/lib/api';
 import {
   createExpense,
@@ -10,13 +11,13 @@ import {
   type ExpenseInput,
 } from '@/lib/expense-service';
 
-export function OPTIONS() {
+export function OPTIONS(): Response {
   return optionsResponse();
 }
 
-export async function GET(request: Request) {
-  const { user, response } = await requireApiUser(request);
-  if (!user) return response;
+export async function GET(request: Request): Promise<Response> {
+  const user = await getApiUser(request);
+  if (!user) return unauthorized();
 
   const url = new URL(request.url);
   const take = Number(url.searchParams.get('limit') || 200);
@@ -28,9 +29,9 @@ export async function GET(request: Request) {
   return json({ ok: true, records });
 }
 
-export async function POST(request: Request) {
-  const { user, response } = await requireApiUser(request);
-  if (!user) return response;
+export async function POST(request: Request): Promise<Response> {
+  const user = await getApiUser(request);
+  if (!user) return unauthorized();
 
   const body = await readJson<ExpenseInput>(request);
   if (!body) {

@@ -1,18 +1,19 @@
 import {
+  getApiUser,
   json,
   optionsResponse,
   readJson,
-  requireApiUser,
+  unauthorized,
 } from '@/lib/api';
 import { findSessionUser, saveOnboarding, toPublicUser } from '@/lib/auth-service';
 
-export function OPTIONS() {
+export function OPTIONS(): Response {
   return optionsResponse();
 }
 
-export async function POST(request: Request) {
-  const { user, response } = await requireApiUser(request);
-  if (!user) return response;
+export async function POST(request: Request): Promise<Response> {
+  const user = await getApiUser(request);
+  if (!user) return unauthorized();
 
   const body = await readJson<{
     monthlyIncome?: string | number;

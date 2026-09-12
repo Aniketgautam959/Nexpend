@@ -1,11 +1,11 @@
 import { authPayload, json, optionsResponse, readJson } from '@/lib/api';
 import { loginAccount } from '@/lib/auth-service';
 
-export function OPTIONS() {
+export function OPTIONS(): Response {
   return optionsResponse();
 }
 
-export async function POST(request: Request) {
+export async function POST(request: Request): Promise<Response> {
   const body = await readJson<{
     email?: string;
     password?: string;

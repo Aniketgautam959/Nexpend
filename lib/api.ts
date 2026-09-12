@@ -11,7 +11,7 @@ import { CORS_HEADERS } from '@/lib/cors';
 
 export { CORS_HEADERS };
 
-export function json(data: unknown, status = 200) {
+export function json(data: unknown, status = 200): NextResponse {
   return NextResponse.json(data, { status, headers: CORS_HEADERS });
 }
 
@@ -62,15 +62,4 @@ export async function getApiUser(
 
 export function unauthorized() {
   return json({ ok: false, error: 'Please sign in' }, 401);
-}
-
-export async function requireApiUser(request: Request): Promise<{
-  user: SessionUser | null;
-  response: NextResponse;
-}> {
-  const user = await getApiUser(request);
-  return {
-    user,
-    response: unauthorized(),
-  };
 }

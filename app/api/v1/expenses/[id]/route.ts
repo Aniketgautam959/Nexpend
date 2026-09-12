@@ -1,8 +1,9 @@
 import {
+  getApiUser,
   json,
   optionsResponse,
   readJson,
-  requireApiUser,
+  unauthorized,
 } from '@/lib/api';
 import {
   deleteExpense,
@@ -10,16 +11,16 @@ import {
   type ExpenseInput,
 } from '@/lib/expense-service';
 
-export function OPTIONS() {
+export function OPTIONS(): Response {
   return optionsResponse();
 }
 
 export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> }
-) {
-  const { user, response } = await requireApiUser(request);
-  if (!user) return response;
+): Promise<Response> {
+  const user = await getApiUser(request);
+  if (!user) return unauthorized();
 
   const { id } = await context.params;
   const body = await readJson<ExpenseInput>(request);
@@ -39,9 +40,9 @@ export async function PATCH(
 export async function DELETE(
   request: Request,
   context: { params: Promise<{ id: string }> }
-) {
-  const { user, response } = await requireApiUser(request);
-  if (!user) return response;
+): Promise<Response> {
+  const user = await getApiUser(request);
+  if (!user) return unauthorized();
 
   const { id } = await context.params;
   const result = await deleteExpense(user.id, id);

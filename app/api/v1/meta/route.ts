@@ -1,11 +1,11 @@
 import { json, optionsResponse } from '@/lib/api';
 import { EXPENSE_CATEGORIES, PAYMENT_METHODS } from '@/lib/expenseMeta';
 
-export function OPTIONS() {
+export function OPTIONS(): Response {
   return optionsResponse();
 }
 
-export function GET() {
+export function GET(): Response {
   return json({
     ok: true,
     categories: EXPENSE_CATEGORIES,

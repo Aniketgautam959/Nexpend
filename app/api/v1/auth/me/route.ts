@@ -1,8 +1,9 @@
 import {
+  getApiUser,
   json,
   optionsResponse,
   readJson,
-  requireApiUser,
+  unauthorized,
 } from '@/lib/api';
 import {
   findSessionUser,
@@ -10,19 +11,19 @@ import {
   updateAccountProfile,
 } from '@/lib/auth-service';
 
-export function OPTIONS() {
+export function OPTIONS(): Response {
   return optionsResponse();
 }
 
-export async function GET(request: Request) {
-  const { user, response } = await requireApiUser(request);
-  if (!user) return response;
+export async function GET(request: Request): Promise<Response> {
+  const user = await getApiUser(request);
+  if (!user) return unauthorized();
   return json({ ok: true, user: toPublicUser(user) });
 }
 
-export async function PATCH(request: Request) {
-  const { user, response } = await requireApiUser(request);
-  if (!user) return response;
+export async function PATCH(request: Request): Promise<Response> {
+  const user = await getApiUser(request);
+  if (!user) return unauthorized();
 
   const body = await readJson<{
     name?: string;

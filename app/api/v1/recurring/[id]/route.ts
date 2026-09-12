@@ -1,9 +1,10 @@
 import { db } from '@/lib/db';
 import {
+  getApiUser,
   json,
   optionsResponse,
   readJson,
-  requireApiUser,
+  unauthorized,
 } from '@/lib/api';
 
 function clampDay(day: number) {
@@ -19,16 +20,16 @@ function computeNextRunAt(dayOfMonth: number, from = new Date()): Date {
   return new Date(Date.UTC(y, m + 1, day, 12, 0, 0));
 }
 
-export function OPTIONS() {
+export function OPTIONS(): Response {
   return optionsResponse();
 }
 
 export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> }
-) {
-  const { user, response } = await requireApiUser(request);
-  if (!user) return response;
+): Promise<Response> {
+  const user = await getApiUser(request);
+  if (!user) return unauthorized();
 
   const { id } = await context.params;
   const body = await readJson<{
@@ -97,9 +98,9 @@ export async function PATCH(
 export async function DELETE(
   request: Request,
   context: { params: Promise<{ id: string }> }
-) {
-  const { user, response } = await requireApiUser(request);
-  if (!user) return response;
+): Promise<Response> {
+  const user = await getApiUser(request);
+  if (!user) return unauthorized();
 
   const { id } = await context.params;
   const result = await db.recurringExpense.deleteMany({

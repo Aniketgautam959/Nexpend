@@ -1,16 +1,16 @@
 import { db } from '@/lib/db';
-import { json, optionsResponse, requireApiUser } from '@/lib/api';
+import { getApiUser, json, optionsResponse, unauthorized } from '@/lib/api';
 
-export function OPTIONS() {
+export function OPTIONS(): Response {
   return optionsResponse();
 }
 
 export async function DELETE(
   request: Request,
   context: { params: Promise<{ id: string }> }
-) {
-  const { user, response } = await requireApiUser(request);
-  if (!user) return response;
+): Promise<Response> {
+  const user = await getApiUser(request);
+  if (!user) return unauthorized();
 
   const { id } = await context.params;
   const result = await db.categoryBudget.deleteMany({

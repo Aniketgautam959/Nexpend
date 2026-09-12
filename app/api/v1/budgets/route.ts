@@ -1,18 +1,19 @@
 import { db } from '@/lib/db';
 import {
+  getApiUser,
   json,
   optionsResponse,
   readJson,
-  requireApiUser,
+  unauthorized,
 } from '@/lib/api';
 
-export function OPTIONS() {
+export function OPTIONS(): Response {
   return optionsResponse();
 }
 
-export async function GET(request: Request) {
-  const { user, response } = await requireApiUser(request);
-  if (!user) return response;
+export async function GET(request: Request): Promise<Response> {
+  const user = await getApiUser(request);
+  if (!user) return unauthorized();
 
   const now = new Date();
   const start = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1));
@@ -57,9 +58,9 @@ export async function GET(request: Request) {
   });
 }
 
-export async function POST(request: Request) {
-  const { user, response } = await requireApiUser(request);
-  if (!user) return response;
+export async function POST(request: Request): Promise<Response> {
+  const user = await getApiUser(request);
+  if (!user) return unauthorized();
 
   const body = await readJson<{ category?: string; amount?: number }>(request);
   if (!body) {
